@@ -1,0 +1,145 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   GX Theme — the shared design language for every Green Cross app.
+   Source of truth. Extracted from Leaderboard (the most refined app) + GX Core.
+   Apps import this once; nothing here is app-specific. Store colors are NOT here —
+   they are data from GX Core (?action=stores) so they can never drift again.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Canvas & surfaces (dark, green-tinted) ── */
+  --gx-bg:            #0a0e0d;
+  --gx-surface:       #121715;
+  --gx-surface-2:     #161c1a;
+  --gx-surface-3:     #1a221f;
+  --gx-surface-dashed:#0f1412;
+
+  /* ── Borders ── */
+  --gx-border:        #232a27;
+  --gx-border-strong: #2e3733;
+
+  /* ── Text ── */
+  --gx-text:          #e6ece9;
+  --gx-text-dim:      #8a958f;
+  --gx-text-mute:     #5e6864;
+
+  /* ── Brand accent (GreenCross green) ── */
+  --gx-green:         #4ade80;
+  --gx-green-bright:  #5ee68f;
+  --gx-green-dim:     #2f8a52;
+  --gx-green-ink:     #06210f;   /* text on a green fill */
+  --gx-green-soft:    rgba(74,222,128,.10);
+  --gx-green-hair:    rgba(74,222,128,.03);
+
+  /* ── Gold (highlights: #1 rank, superadmin, "special") ── */
+  --gx-gold:          #d4a847;
+  --gx-gold-line:     rgba(212,168,71,.6);
+  --gx-gold-soft:     rgba(212,168,71,.07);
+
+  /* ── Status / semantic (reserved — never used for store colors) ── */
+  --gx-red:           #ef4444;
+  --gx-red-soft:      rgba(239,68,68,.10);
+  --gx-amber:         #eab308;
+  --gx-yellow:        #facc15;
+  --gx-orange:        #f97316;
+  --gx-blue:          #60a5fa;
+  --gx-purple:        #a78bfa;
+  --gx-pink:          #f472b6;
+
+  /* ── Type ── */
+  --gx-font: -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+
+  /* ── Radii ── */
+  --gx-radius-sm:   4px;
+  --gx-radius:      6px;
+  --gx-radius-md:   8px;
+  --gx-radius-lg:   10px;
+  --gx-radius-xl:   12px;
+  --gx-radius-pill: 999px;
+
+  /* ── Spacing ── */
+  --gx-gap-xs: 4px; --gx-gap-sm: 6px; --gx-gap: 8px; --gx-gap-md: 10px;
+  --gx-gap-lg: 14px; --gx-gap-xl: 18px; --gx-gap-2xl: 24px;
+
+  /* ── Elevation ── */
+  --gx-shadow:    0 12px 32px rgba(0,0,0,.5);
+  --gx-shadow-lg: 0 28px 70px rgba(0,0,0,.5);
+}
+
+/* ── Base ── */
+.gx-app {
+  background: var(--gx-bg);
+  color: var(--gx-text);
+  font-family: var(--gx-font);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Brand wordmark ── */
+.gx-wordmark { font-weight: 900; font-size: 20px; letter-spacing: .5px; color: var(--gx-text); }
+.gx-wordmark .gx-green { color: var(--gx-green); }
+
+/* ── Section header (LABEL / description) ── */
+.gx-section-head { display: flex; align-items: baseline; gap: var(--gx-gap-lg); margin: var(--gx-gap-2xl) 0 var(--gx-gap-md); }
+.gx-section-head h2 { margin: 0; font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--gx-text-dim); font-weight: 700; }
+.gx-section-head .gx-sep { color: var(--gx-border-strong); }
+.gx-section-head .gx-desc { font-size: 11px; color: var(--gx-text-mute); }
+
+/* ── Label (small caps) ── */
+.gx-label { font-size: 10px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--gx-text-mute); font-weight: 600; }
+
+/* ── Cards ── */
+.gx-card { background: var(--gx-surface); border: 1px solid var(--gx-border); border-radius: var(--gx-radius-lg); }
+.gx-card-2 { background: var(--gx-surface-2); border: 1px solid var(--gx-border); border-radius: var(--gx-radius-md); }
+
+/* ── Buttons ── */
+.gx-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  background: transparent; color: var(--gx-text-dim);
+  border: 1px solid var(--gx-border-strong); border-radius: var(--gx-radius);
+  padding: 6px 12px; font-size: 12px; font-family: inherit; cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s, transform .06s;
+}
+.gx-btn:hover { color: var(--gx-text); border-color: var(--gx-green); }
+.gx-btn:active { transform: scale(.985); }
+.gx-btn-green {
+  background: var(--gx-green); border: 1px solid var(--gx-green);
+  color: var(--gx-green-ink); font-weight: 700;
+}
+.gx-btn-green:hover { background: var(--gx-green-bright); border-color: var(--gx-green-bright); color: var(--gx-green-ink); }
+.gx-btn:disabled { opacity: .55; cursor: default; }
+
+/* ── Inputs ── */
+.gx-input {
+  width: 100%; background: var(--gx-surface-3);
+  border: 1px solid var(--gx-border); border-radius: var(--gx-radius);
+  color: var(--gx-text); padding: 10px 12px; font-size: 14px; font-family: inherit;
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.gx-input:focus { border-color: var(--gx-green-dim); box-shadow: 0 0 0 3px var(--gx-green-soft); }
+.gx-input::placeholder { color: var(--gx-text-mute); }
+
+/* ── Pills & badges ── */
+.gx-pill {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px;
+  border: 1px solid var(--gx-border-strong); color: var(--gx-text-dim);
+  background: var(--gx-surface-2); border-radius: var(--gx-radius-pill);
+  font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+}
+.gx-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gx-green); box-shadow: 0 0 6px var(--gx-green); }
+.gx-badge-super {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+  color: var(--gx-gold); border: 1px solid var(--gx-gold-line); background: var(--gx-gold-soft);
+  border-radius: var(--gx-radius-sm); padding: 2px 6px;
+}
+
+/* ── Avatar ── */
+.gx-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg,#3a5a4a,#1e2a26); color: var(--gx-text);
+  font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--gx-border-strong); flex: none;
+}
+
+@keyframes gx-pulse { 0%,100%{ opacity:1 } 50%{ opacity:.35 } }
