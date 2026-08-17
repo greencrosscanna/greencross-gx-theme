@@ -22,12 +22,20 @@
  * clear "couldn't reach GX Core" state on final failure (never a silent blank).
  */
 (function (global) {
+  // Callback names must be unique across EVERY client on the page, not just within one
+  // instance. An app that talks to GX Core *and* its own engine holds two clients; if both
+  // fire in the same millisecond, a per-instance counter produces the same name twice —
+  // the second registration clobbers the first, one response resolves the WRONG promise
+  // with the wrong payload, and the other throws "__gx_… is not defined". Silent, and it
+  // looks like an empty API result. Counter + nonce live here, shared by all instances.
+  var _uid   = 0;
+  var _nonce = Math.random().toString(36).slice(2, 8);
+
   function GXClient(baseUrl, defaults) {
     defaults = defaults || {};
     var RETRIES  = defaults.retries   != null ? defaults.retries   : 4;      // total attempts = RETRIES + 1
     var TIMEOUT  = defaults.timeoutMs != null ? defaults.timeoutMs : 8000;   // per-attempt; a miss = no callback within this
     var BACKOFF  = defaults.backoffMs != null ? defaults.backoffMs : 600;    // linear: 600ms, 1200ms, 1800ms…
-    var _seq = 0;
     var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
     function buildUrl(action, params, extra) {
@@ -42,7 +50,7 @@
     // page — callback never fires) or on script error.
     function jsonpOnce(action, params, timeoutMs) {
       return new Promise(function (resolve, reject) {
-        var cb = '__gx_' + Date.now() + '_' + (++_seq);
+        var cb = '__gx_' + _nonce + '_' + Date.now() + '_' + (++_uid);
         var script = document.createElement('script');
         var done = false;
         var cleanup = function () { done = true; try { delete global[cb]; } catch (e) { global[cb] = undefined; } script.remove(); clearTimeout(timer); };
@@ -50,7 +58,7 @@
         global[cb] = function (payload) { if (done) return; cleanup(); resolve(payload); };
         script.onerror = function () { if (!done) { cleanup(); reject(new Error('jsonp script error')); } };
         // cache-bust every attempt so a bad intermediary response is never reused
-        script.src = buildUrl(action, params, { callback: cb, _ts: String(Date.now()) + '_' + _seq });
+        script.src = buildUrl(action, params, { callback: cb, _ts: String(Date.now()) + '_' + _uid });
         document.head.appendChild(script);
       });
     }
