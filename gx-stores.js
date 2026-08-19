@@ -19,7 +19,7 @@
  *   GXStores.get('bend')                    // the row
  *   GXStores.color('bend')                  // '#22D3EE'
  *   GXStores.name('bend')                   // 'Century'
- *   GXStores.resolve('Century')             // 'bend'   <- id, display name, or short code
+ *   GXStores.resolve('Century Dr')           // 'bend'   <- id, display name, short code, or alias
  *   CSS: var(--store-bend)                  // written for every store by load()
  */
 (function (global) {
@@ -95,6 +95,12 @@
     rows.forEach(function (s) {
       ['display_name', 'dutchie_name', 'short_code'].forEach(function (f) {
         if (s[f] && String(s[f]).trim().toLowerCase() === q) hits[s.store_id] = true;
+      });
+      // `aliases` is every name staff or a vendor export actually uses for this store -- the Bend store
+      // is called Bend, Century, or Century Dr; the Commercial store is South, Commercial, or
+      // Commercial St. GX Core publishes the list so no app has to keep its own.
+      (s.aliases || []).forEach(function (a) {
+        if (String(a).trim().toLowerCase() === q) hits[s.store_id] = true;
       });
     });
     var ids = Object.keys(hits);
