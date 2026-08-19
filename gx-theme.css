@@ -242,8 +242,13 @@
    flex-shrink:0 so labels never squash, horizontal scroll with the scrollbar hidden. */
 .gx-topnav-tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;min-width:0;}
 .gx-topnav-tabs::-webkit-scrollbar{display:none;}
-.gx-topnav-tab{flex-shrink:0;height:40px;padding:6px 10px;border:none;background:none;border-radius:0;
-  color:var(--gx-text-mute);font:500 12px/1 var(--gx-font);cursor:pointer;transition:color .15s,box-shadow .15s;}
+/* LAYOUT is Inventory's (inset underline, 40px, scrolling row). TYPOGRAPHY is not: Inventory's tabs
+   are sentence case, and importing that made the tabs the only chrome element here that is not
+   uppercase and letterspaced -- they read as body text dropped into a letterspaced header. This is
+   Crew's original tab treatment (600 / 1.1px / uppercase), which matches .gx-topnav-sub beside it. */
+.gx-topnav-tab{flex-shrink:0;height:40px;padding:6px 12px;border:none;background:none;border-radius:0;
+  color:var(--gx-text-mute);font:600 12px/1 var(--gx-font);letter-spacing:1.1px;text-transform:uppercase;
+  cursor:pointer;transition:color .15s,box-shadow .15s;}
 .gx-topnav-tab:hover:not(.is-active){color:var(--gx-text);}
 .gx-topnav-tab.is-active{color:var(--gx-text);box-shadow:inset 0 -2px 0 var(--gx-green);}
 
