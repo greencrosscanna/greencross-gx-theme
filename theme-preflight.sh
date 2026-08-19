@@ -60,6 +60,36 @@ else
   echo "  ✓ gx-preflight.sh — still a template"
 fi
 
+# 6. THE PREVIEW MUST NOT LIE. It exists to show what an app gets; every way it differs from a real
+#    app is a defect it can hide. This has bitten twice already: overriding .gx-login's height removed
+#    the component's own background and hid the ambient glow, and a <body> without .gx-app missed
+#    -webkit-font-smoothing so every label rendered heavier than any app would.
+#      (a) it must carry .gx-app on <body>, exactly like every app
+#      (b) it must not style ANY .gx-* selector -- preview chrome is .pv-* only
+if [ -f preview.html ]; then
+  if grep -q '<body class="gx-app">' preview.html; then
+    echo "  ✓ preview.html — <body class=\"gx-app\">, renders like a real app"
+  else
+    echo "  ✗ preview.html — <body> must carry class=\"gx-app\" or it misreports weight and spacing"
+    FAIL=1
+  fi
+  _bad="$(python3 - <<'PY'
+import re
+s = open('preview.html', encoding='utf-8').read()
+head = s.split('</style>')[0] if '</style>' in s else ''
+bad = [m for m in re.findall(r'^\s*([.#][\w .:>#\[\]="-]*)\s*\{', head, re.M) if '.gx-' in m]
+print('\n'.join(bad))
+PY
+)"
+  if [ -n "$_bad" ]; then
+    echo "  ✗ preview.html styles shared components — every such rule can hide a real defect:"
+    printf '%s\n' "$_bad" | sed 's/^/      /'
+    FAIL=1
+  else
+    echo "  ✓ preview.html — styles no .gx-* selector"
+  fi
+fi
+
 if [ "$FAIL" = "1" ]; then
   echo ""
   echo "PUSH BLOCKED — this repo feeds every app. Fix the ✗ items, or bypass with: git push --no-verify"
