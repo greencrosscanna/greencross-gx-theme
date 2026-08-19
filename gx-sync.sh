@@ -25,6 +25,24 @@ fetch() {
   fi
 }
 
+# ─── Self-update ────────────────────────────────────────────────────────────────────────────────
+# This script used to be the one file that did NOT update itself, so a spoke would happily sync using
+# a stale copy and silently skip newly-added shared files. It now fetches itself first.
+# The new copy is RUN FROM A TEMP PATH and only then written over this file -- overwriting a shell
+# script while sh is still reading it makes the shell execute whatever bytes now sit at its current
+# offset, which is a genuinely nasty way to fail.
+if [ "${GX_SYNC_SELFUPDATED:-}" != "1" ]; then
+  _new="$(mktemp)"
+  if curl -fsSL "$BASE/gx-sync.sh" > "$_new" 2>/dev/null && [ -s "$_new" ] && ! cmp -s "$_new" "$0"; then
+    echo "  gx-sync.sh is out of date — updating itself and re-running"
+    GX_SYNC_SELFUPDATED=1 sh "$_new" "$@"; _status=$?
+    cat "$_new" > "$0" && chmod 755 "$0"
+    rm -f "$_new"
+    exit $_status
+  fi
+  rm -f "$_new"
+fi
+
 echo "Syncing shared GX spoke files for app=$APP …"
 fetch gx-brain-notes.sh .claude/gx-brain-notes.sh || true
 fetch deploy.sh          deploy.sh                 || true
