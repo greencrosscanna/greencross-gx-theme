@@ -20,11 +20,11 @@
 <div class="pv-wrap">
 
   <div class="pv-h">Top nav — tabs from Inventory, clock from Leaderboard, settings/version/sign-out inside the user menu</div>
-  <p class="pv-note">Click the <strong>SK</strong> chip. Active tab uses an inset underline, so switching tabs shifts nothing.
+  <p class="pv-note">Click the user chip. Active tab uses an inset underline, so switching tabs shifts nothing.
      The tab row scrolls horizontally on narrow screens instead of wrapping.</p>
   <div class="pv-frame">
     <header class="gx-topnav">
-      <div class="gx-topnav-brand">GX&nbsp;Crew <span class="gx-topnav-sub">HR &amp; People</span></div>
+      <div class="gx-topnav-brand"><img class="gx-topnav-logo" src="gx-logo.png" alt="Green Cross"><span class="gx-topnav-sub">Crew</span></div>
       <nav class="gx-topnav-tabs">
         <button class="gx-topnav-tab is-active">Roster</button>
         <button class="gx-topnav-tab">Review</button>
@@ -34,7 +34,9 @@
       <div class="gx-topnav-right">
         <div class="gx-clock"><div class="gx-clock-time">—</div><div class="gx-clock-date">—</div></div>
         <div class="gx-user">
-          <button class="gx-user-btn" aria-haspopup="menu" aria-expanded="false">SK</button>
+          <button class="gx-user-btn" aria-haspopup="menu" aria-expanded="false">
+            <span class="gx-user-ava">SK</span><span class="gx-user-name">Sky Pinnick</span>
+          </button>
           <div class="gx-user-menu" role="menu" hidden>
             <div class="gx-user-head">Sky Pinnick<span>Admin</span></div>
             <button class="gx-user-item" data-gx-action="settings">Settings</button>
@@ -51,8 +53,10 @@
   <p class="pv-note">Wordmark plus one uppercase subtitle. No pill, no second line. Inventory keeps its
      graphic in the <code>.gx-login-art</code> slot, on these same colours.</p>
   <div class="pv-frame"><div class="gx-login"><div class="gx-login-card">
-    <div class="gx-wordmark" style="font-weight:900;font-size:20px;letter-spacing:.5px;">GREEN<b>CROSS</b></div>
-    <div class="gx-login-sub">Sales Dashboard</div>
+    <div class="gx-login-head">
+      <img class="gx-login-mark" src="gx-logo.png" alt="Green Cross">
+      <div class="gx-login-sub">Sales Dashboard</div>
+    </div>
     <form class="gx-login-form" onsubmit="return false">
       <label class="gx-login-field"><span>Username</span><input class="gx-input" value="sky"></label>
       <label class="gx-login-field"><span>Password</span><input class="gx-input" type="password" value="••••••"></label>
