@@ -93,7 +93,17 @@
                   {action:'logout',   label:'Sign out', danger: true} ]
        });
      Clicks emit gx-topnav:action with the item's `action`; what it MEANS stays in the app.
-     A row with no `action` renders as static info (the GX Core status row in SPIFF). */
+     A row with no `action` renders as static info (the GX Core status row in SPIFF).
+
+     CANONICAL ORDER -- keep it identical across apps, so the same item is in the same place wherever
+     someone happens to be working. Every app is expected to grow a settings panel; when one lands,
+     it goes in the SETTINGS slot below and nowhere else:
+       1. app-specific info rows   (no action -- status, connection, environment)
+       2. { action: 'settings', label: 'Settings' }
+       3. { action: 'version',  label: 'Version', value: APP_VERSION }
+       4. { action: 'logout',   label: 'Sign out', danger: true }
+     Omit a slot the app genuinely lacks rather than shipping an item that does nothing -- SPIFF had a
+     settings GEAR wired to no handler at all, which looked functional and was not. */
   function renderUser(slot, opts) {
     if (!slot) return;
     opts = opts || {};
