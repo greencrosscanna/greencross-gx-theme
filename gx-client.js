@@ -20,6 +20,13 @@
  *   const r2 = await GX.getJSON('config', { keys: 'lbGoals' });           // fetch variant (same-origin / CORS-enabled)
  * Both retry transparently and reject only after every attempt misses; wrap in try/catch and render a
  * clear "couldn't reach GX Core" state on final failure (never a silent blank).
+ *
+ * DEV GUARD
+ * Both entry points call GXDev.check(action) when gx-dev.js is present, so any app routing through this
+ * client is protected on localhost without wiring its own call sites: an action the app has not declared
+ * a read is blocked until writes are armed. The dependency is OPTIONAL — a page without gx-dev.js behaves
+ * exactly as before, and gx-dev.js is inert outside localhost. An app that ALSO hand-rolls its own call
+ * layer must call GXDev.check() there too; this client only sees what goes through it.
  */
 (function (global) {
   // Callback names must be unique across EVERY client on the page, not just within one
@@ -65,6 +72,7 @@
 
     // JSONP with retry+backoff. THE call to use for GX Core from a spoke frontend.
     function jsonp(action, params, opts) {
+      if (global.GXDev) global.GXDev.check(action);   // dev write-guard; inert in production
       opts = opts || {};
       var retries = opts.retries != null ? opts.retries : RETRIES;
       var timeoutMs = opts.timeoutMs != null ? opts.timeoutMs : TIMEOUT;
@@ -83,6 +91,7 @@
     // fetch variant: detects the Drive HTML page (body isn't JSON) and retries. For same-origin or
     // CORS-enabled endpoints; for cross-origin GX Core GETs use jsonp() (no CORS headers there).
     async function getJSON(action, params, opts) {
+      if (global.GXDev) global.GXDev.check(action);   // dev write-guard; inert in production
       opts = opts || {};
       var retries = opts.retries != null ? opts.retries : RETRIES;
       var lastErr;
