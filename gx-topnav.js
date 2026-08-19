@@ -82,5 +82,50 @@
   function startClock() { paintClock(); if (timer) clearInterval(timer); timer = setInterval(paintClock, 20000); }
   function stopClock()  { if (timer) { clearInterval(timer); timer = null; } }
 
-  global.GXTopNav = { init: init, startClock: startClock, stopClock: stopClock, paintClock: paintClock, closeAll: closeAll };
+  /* Build the whole user chip + menu, so no app hand-writes this markup. Every app was otherwise
+     assembling the same HTML string itself, which is how two apps end up with menus that drift apart
+     -- one gains an item, the other does not, and neither is obviously wrong.
+     Adding a menu item later is one line of config here, not new markup in the app:
+       GXTopNav.renderUser(slot, {
+         name: 'Sky Pinnick', role: 'admin', avatar: GXAvatar.chip(cfg, name),
+         items: [ {action:'settings', label:'Settings'},
+                  {action:'version',  label:'Version', value: 'v18'},
+                  {action:'logout',   label:'Sign out', danger: true} ]
+       });
+     Clicks emit gx-topnav:action with the item's `action`; what it MEANS stays in the app.
+     A row with no `action` renders as static info (the GX Core status row in SPIFF). */
+  function renderUser(slot, opts) {
+    if (!slot) return;
+    opts = opts || {};
+    if (!opts.name) { slot.innerHTML = ''; return; }
+    var esc = function (v) {
+      return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+    var rows = (opts.items || []).map(function (it) {
+      var value = it.value ? '<span class="gx-user-ver">' + esc(it.value) + '</span>' : '';
+      var cls = 'gx-user-item' + (it.danger ? ' is-danger' : '');
+      // no action -> a static info row, not a button: it must not look clickable
+      if (!it.action) return '<div class="' + cls + '" style="cursor:default">' + esc(it.label) + ' ' + value + '</div>';
+      return '<button class="' + cls + '" data-gx-action="' + esc(it.action) + '">' + esc(it.label) + ' ' + value + '</button>';
+    }).join('');
+
+    slot.innerHTML =
+      '<div class="gx-user">' +
+        '<button class="gx-user-btn" aria-haspopup="menu" aria-expanded="false">' +
+          '<span class="gx-user-ava">' + (opts.avatar || esc(opts.name).slice(0, 2).toUpperCase()) + '</span>' +
+          '<span class="gx-user-name">' + esc(opts.name) + '</span>' +
+        '</button>' +
+        '<div class="gx-user-menu" role="menu" hidden>' +
+          '<div class="gx-user-head">' + esc(opts.name) +
+            '<span>' + esc(opts.role || '') + '</span></div>' +
+          rows +
+        '</div>' +
+      '</div>';
+    init(slot);
+    return slot.querySelector('.gx-user-btn');
+  }
+
+  global.GXTopNav = { init: init, renderUser: renderUser, startClock: startClock, stopClock: stopClock,
+                      paintClock: paintClock, closeAll: closeAll };
 })(typeof window !== 'undefined' ? window : this);
