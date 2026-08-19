@@ -192,8 +192,8 @@
 /* The mark spans the card's content width, so it lines up exactly with the inputs and the button
    beneath it. Width-driven rather than height-driven: the card is the constant, and the logo's own
    8.22:1 aspect decides the height (322px wide -> ~39px tall at the current card size). */
-.gx-login-mark{display:block;width:100%;height:auto;margin:0 auto 14px;}
-.gx-login-sub{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gx-text-mute);
+.gx-login-mark{display:block;width:100%;height:auto;margin:0 auto 6px;}
+.gx-login-sub{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gx-text-mute);
   font-weight:700;margin:0;}
 .gx-login-art{margin:0 0 22px;border-radius:var(--gx-radius-md);overflow:hidden;}
 .gx-login-art img{display:block;width:100%;height:auto;}
