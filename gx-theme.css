@@ -143,3 +143,59 @@
 }
 
 @keyframes gx-pulse { 0%,100%{ opacity:1 } 50%{ opacity:.35 } }
+
+/* ── Login card ──────────────────────────────────────────────────────────────────────────────────
+   ONE sign-in treatment for every GX app. Lifted from the Command Center, whose login was already
+   using these exact values inline (#1a221f = --gx-surface-3, #232a27 = --gx-border, #4ade80 =
+   --gx-green, #06210f = --gx-green-ink) -- this only gives them names so every app inherits them.
+
+   Structure is wordmark + ONE uppercase subtitle. No pill, no secondary line: the app's identity is
+   the subtitle ("SALES DASHBOARD", "SALES PERFORMANCE", "COMMAND CENTER", "INVENTORY"), nothing else.
+
+     <div class="gx-login">
+       <div class="gx-login-card">
+         <img class="gx-login-mark" src="…">           (or a .gx-wordmark)
+         <div class="gx-login-sub">Sales Dashboard</div>
+         <div class="gx-login-art">…</div>             (optional -- Inventory's graphic goes here)
+         <form class="gx-login-form">
+           <label class="gx-login-field"><span>Username</span><input class="gx-input"></label>
+           <label class="gx-login-field"><span>Password</span><input class="gx-input" type="password"></label>
+           <button class="gx-btn gx-btn-green gx-login-submit">Sign in</button>
+           <div class="gx-login-err">…</div>           (only when there is an error)
+         </form>
+       </div>
+     </div>                                                                                         */
+.gx-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--gx-bg);}
+.gx-login-card{width:100%;max-width:380px;background:var(--gx-surface);border:1px solid var(--gx-border);
+  border-radius:var(--gx-radius-lg);padding:30px 28px 28px;box-shadow:var(--gx-shadow-lg);}
+.gx-login-mark{display:block;height:26px;width:auto;margin-bottom:10px;}
+.gx-login-sub{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gx-text-mute);
+  font-weight:700;margin:0 0 26px;}
+.gx-login-art{margin:0 0 22px;border-radius:var(--gx-radius-md);overflow:hidden;}
+.gx-login-art img{display:block;width:100%;height:auto;}
+.gx-login-form{display:grid;gap:14px;}
+.gx-login-field{display:grid;gap:6px;}
+.gx-login-field>span{font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--gx-text-mute);font-weight:600;}
+.gx-login-submit{width:100%;justify-content:center;padding:11px 14px;font-size:13.5px;font-weight:700;}
+.gx-login-err{font-size:12px;color:var(--gx-red);min-height:1em;}
+
+/* ── Top nav ─────────────────────────────────────────────────────────────────────────────────────
+   One app header. Wordmark/app name on the left, tabs in the middle, user chip on the right.
+     <header class="gx-topnav">
+       <div class="gx-topnav-brand">…</div>
+       <nav class="gx-topnav-tabs"><button class="gx-topnav-tab is-active">Today</button>…</nav>
+       <div class="gx-topnav-right">…</div>
+     </header>                                                                                      */
+.gx-topnav{display:flex;align-items:center;gap:16px;height:52px;padding:0 18px;background:var(--gx-surface);
+  border-bottom:1px solid var(--gx-border);}
+.gx-topnav-brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:14px;color:var(--gx-text);white-space:nowrap;}
+.gx-topnav-brand img{height:18px;width:auto;display:block;}
+.gx-topnav-sub{font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--gx-text-mute);font-weight:700;}
+.gx-topnav-tabs{display:flex;align-items:center;gap:2px;margin-left:8px;overflow-x:auto;scrollbar-width:none;}
+.gx-topnav-tabs::-webkit-scrollbar{display:none;}
+.gx-topnav-tab{appearance:none;border:1px solid transparent;background:transparent;color:var(--gx-text-dim);
+  font:600 12.5px/1 var(--gx-font);letter-spacing:.2px;padding:8px 12px;border-radius:var(--gx-radius);
+  cursor:pointer;white-space:nowrap;}
+.gx-topnav-tab:hover{color:var(--gx-text);background:var(--gx-surface-2);}
+.gx-topnav-tab.is-active{color:var(--gx-green);background:var(--gx-green-soft);border-color:var(--gx-green-hair);}
+.gx-topnav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
