@@ -79,8 +79,21 @@ for page in [f for f in os.listdir('.') if f.endswith('.html')]:
     if page not in tracked:            # only judge pages we actually ship
         continue
     html = open(page, encoding='utf-8', errors='ignore').read()
+    # Strip HTML comments first. A comment that documents markup is not a shipped reference, and
+    # counting it produced a false positive on this very rule -- the bootstrap comment names the tag
+    # it replaces, and the scanner read that as a live reference.
+    html = re.sub(r'<!--.*?-->', '', html, flags=re.S)
     for ref in re.findall(r'(?:src|href)="([^"]+)"', html):
         if re.match(r'(https?:)?//|data:|mailto:|#|/', ref):   # remote, data, anchor, absolute
+            continue
+        # Skip anything built at RUNTIME by JS rather than written as a static path. These pages
+        # embed scripts that concatenate HTML, so a src= inside a template literal or a string
+        # join is not a reference the browser ever resolves as written. Built with chr() so no
+        # quote character appears in this heredoc -- one inside the enclosing $() breaks the
+        # shell parse of the whole script.
+        BAD = set(chr(36) + chr(123) + chr(125) + chr(43) + chr(96) + chr(60) + chr(62) + chr(32))
+        BAD.add(chr(39)); BAD.add(chr(34))
+        if any(c in ref for c in BAD):
             continue
         path = ref.split('?')[0].split('#')[0]
         if not path or path in tracked or os.path.isdir(path):
