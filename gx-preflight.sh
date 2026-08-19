@@ -24,7 +24,8 @@ FILES="$(git ls-files '*.html' '*.js' '*.css' 2>/dev/null | grep -vE '^(gx-dev\.
 # tree gets --no-verify'd within a day, which defeats the whole point. The @devonly check is the one
 # that deliberately wants comments.
 flag() {
-  hits="$(grep -nE "$3" $FILES 2>/dev/null || true)"
+  hits="$(grep -HnE "$3" $FILES 2>/dev/null || true)"   # -H: grep omits the filename for a SINGLE
+                                                       # file, which breaks the comment filter below
   if [ "${4:-}" != "comments" ]; then
     # drop  file:line:<whitespace>(// | * | #)  — i.e. the match sits in a comment, not in code
     hits="$(printf '%s\n' "$hits" | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(//|\*|#)' || true)"
