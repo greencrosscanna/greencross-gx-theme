@@ -1,0 +1,85 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<title>GX shared UI — preview</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="gx-theme.css">
+<style>
+  body{background:var(--gx-bg);color:var(--gx-text);font-family:var(--gx-font);margin:0;}
+  .pv-wrap{max-width:1100px;margin:0 auto;padding:0 0 60px;}
+  .pv-h{font:700 11px/1 var(--gx-font);letter-spacing:1.4px;text-transform:uppercase;
+        color:var(--gx-text-mute);margin:34px 20px 10px;}
+  .pv-note{margin:0 20px 14px;color:var(--gx-text-dim);font-size:12.5px;max-width:70ch;line-height:1.5;}
+  .pv-frame{border:1px solid var(--gx-border);border-radius:var(--gx-radius-md);overflow:visible;margin:0 20px;}
+  .pv-body{padding:22px;color:var(--gx-text-mute);font-size:12.5px;}
+  .pv-swatches{display:flex;flex-wrap:wrap;gap:10px;margin:0 20px;}
+  .pv-sw{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--gx-surface);
+         border:1px solid var(--gx-border);border-radius:var(--gx-radius);font-size:12px;}
+  .pv-dot{width:14px;height:14px;border-radius:4px;}
+  .pv-sw code{color:var(--gx-text-mute);font-size:11px;}
+  .gx-login{min-height:auto;padding:28px 0;}
+</style></head><body>
+<div class="pv-wrap">
+
+  <div class="pv-h">Top nav — tabs from Inventory, clock from Leaderboard, settings/version/sign-out inside the user menu</div>
+  <p class="pv-note">Click the <strong>SK</strong> chip. Active tab uses an inset underline, so switching tabs shifts nothing.
+     The tab row scrolls horizontally on narrow screens instead of wrapping.</p>
+  <div class="pv-frame">
+    <header class="gx-topnav">
+      <div class="gx-topnav-brand">GX&nbsp;Crew <span class="gx-topnav-sub">HR &amp; People</span></div>
+      <nav class="gx-topnav-tabs">
+        <button class="gx-topnav-tab is-active">Roster</button>
+        <button class="gx-topnav-tab">Review</button>
+        <button class="gx-topnav-tab">Identity</button>
+        <button class="gx-topnav-tab">Compensation</button>
+      </nav>
+      <div class="gx-topnav-right">
+        <div class="gx-clock"><div class="gx-clock-time">—</div><div class="gx-clock-date">—</div></div>
+        <div class="gx-user">
+          <button class="gx-user-btn" aria-haspopup="menu" aria-expanded="false">SK</button>
+          <div class="gx-user-menu" role="menu" hidden>
+            <div class="gx-user-head">Sky Pinnick<span>Admin</span></div>
+            <button class="gx-user-item" data-gx-action="settings">Settings</button>
+            <button class="gx-user-item" data-gx-action="version">Version <span class="gx-user-ver">v11</span></button>
+            <button class="gx-user-item is-danger" data-gx-action="logout">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div class="pv-body" id="pvEcho">Menu actions appear here.</div>
+  </div>
+
+  <div class="pv-h">Login — Command Center treatment, Sales content structure</div>
+  <p class="pv-note">Wordmark plus one uppercase subtitle. No pill, no second line. Inventory keeps its
+     graphic in the <code>.gx-login-art</code> slot, on these same colours.</p>
+  <div class="pv-frame"><div class="gx-login"><div class="gx-login-card">
+    <div class="gx-wordmark" style="font-weight:900;font-size:20px;letter-spacing:.5px;">GREEN<b>CROSS</b></div>
+    <div class="gx-login-sub">Sales Dashboard</div>
+    <form class="gx-login-form" onsubmit="return false">
+      <label class="gx-login-field"><span>Username</span><input class="gx-input" value="sky"></label>
+      <label class="gx-login-field"><span>Password</span><input class="gx-input" type="password" value="••••••"></label>
+      <button class="gx-btn gx-btn-green gx-login-submit">Sign in</button>
+    </form>
+  </div></div></div>
+
+  <div class="pv-h">Store colours — live from GX Core, keyed on store_id</div>
+  <p class="pv-note">Painted by <code>gx-stores.js</code> from the registry's <code>color</code> column.
+     No app hardcodes these. Note <code>bend</code> displays as <strong>Century</strong> and
+     <code>hillsboro</code> as <strong>Baseline</strong> — which is why the variable is the ID, never the name.</p>
+  <div class="pv-swatches" id="pvStores"><span class="pv-note">loading…</span></div>
+
+</div>
+<script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-client.js"></script>
+<script src="gx-topnav.js"></script>
+<script src="gx-stores.js"></script>
+<script>
+  GXTopNav.init(); GXTopNav.startClock();
+  document.addEventListener('gx-topnav:action', function(e){
+    document.getElementById('pvEcho').textContent = 'gx-topnav:action → ' + e.detail.action;
+  });
+  GXStores.load('https://script.google.com/macros/s/AKfycbx9mjeCBbDpxNYaqBv2hyZaO1hpbGG6PZM9AebFdwl0UwkdtRCGSWrH-8ohEtdF1K_6/exec')
+    .then(function(rows){
+      document.getElementById('pvStores').innerHTML = rows.map(function(s){
+        return '<span class="pv-sw"><span class="pv-dot" style="background:var(--store-'+s.store_id+')"></span>'
+             + '<b>'+s.display_name+'</b> <code>'+s.store_id+' · '+s.short_code+'</code></span>';
+      }).join('') || '<span class="pv-note">no stores returned</span>';
+    });
+</script></body></html>
