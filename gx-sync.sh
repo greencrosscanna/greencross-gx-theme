@@ -28,7 +28,22 @@ fetch() {
 echo "Syncing shared GX spoke files for app=$APP …"
 fetch gx-brain-notes.sh .claude/gx-brain-notes.sh || true
 fetch deploy.sh          deploy.sh                 || true
-chmod +x .claude/gx-brain-notes.sh deploy.sh 2>/dev/null || true
+fetch serve.py           serve.py                  || true
+fetch gx-dev.js          gx-dev.js                 || true
+fetch gx-preflight.sh    gx-preflight.sh           || true
+chmod +x .claude/gx-brain-notes.sh deploy.sh serve.py gx-preflight.sh 2>/dev/null || true
+
+# Install preflight as a pre-push hook so dev leftovers (fixtures on, writes armed, @devonly blocks,
+# localhost URLs) can't reach Pages. Never clobber a hook that already does something else.
+if [ -d .git ]; then
+  if [ ! -f .git/hooks/pre-push ] || grep -q gx-preflight .git/hooks/pre-push 2>/dev/null; then
+    printf '#!/bin/sh\nexec ./gx-preflight.sh\n' > .git/hooks/pre-push
+    chmod +x .git/hooks/pre-push
+    echo "  + .git/hooks/pre-push -> gx-preflight.sh"
+  else
+    echo "  . .git/hooks/pre-push is custom - add './gx-preflight.sh' to it yourself"
+  fi
+fi
 
 # Ensure the SessionStart hook is wired — create a minimal settings.json, never clobber an existing one.
 if [ ! -f .claude/settings.json ]; then

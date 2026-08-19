@@ -37,15 +37,24 @@ spoke repo carries, so a cross-cutting change is a one-place edit instead of an 
   ride the notes rail) for the current app. Retries through GX Core's ~6% two-hop flake.
 - `deploy.sh` — records a release in GX Core's `version_history` (version single-sourced from the
   `?v=NN` cache-buster in `index.html`).
-- `gx-sync.sh` — the sync tool the spokes run to pull the two files above.
+- `serve.py` — the dev server for the local loop. Serves the working tree with `Cache-Control: no-store`
+  on a **fixed port per app** (map lives in the file), bound to `127.0.0.1` unless you pass `--lan`.
+- `gx-dev.js` — the dev guard. On localhost it paints a banner and **blocks any action the app has not
+  declared a read** until writes are armed; **inert in production**. Apps Script exposes no request
+  headers to `doGet(e)`, so the server cannot tell localhost from a kiosk — this guard is the only
+  thing that can. Wire it as `if (window.GXDev) GXDev.check(action)` in the app's single api chokepoint.
+- `gx-preflight.sh` — installed by `gx-sync.sh` as a **pre-push hook**. Blocks dev leftovers:
+  `USE_FIXTURES = true`, a committed `GXDev.arm()`, `@devonly` blocks, localhost URLs, `debugger`.
+- `gx-sync.sh` — the sync tool the spokes run to pull the files above.
 
-Both templates use an `__APP__` placeholder that `gx-sync.sh` fills from the repo's `.gx_app`.
+All templates use an `__APP__` placeholder that `gx-sync.sh` fills from the repo's `.gx_app`.
 
 **Onboard a new spoke (one time):**
 ```sh
 echo pricecards > .gx_app          # this app's GX Core key
 curl -fsSL https://greencrosscanna.github.io/greencross-gx-theme/gx-sync.sh > gx-sync.sh && chmod +x gx-sync.sh
-./gx-sync.sh                        # pulls the hook + deploy.sh, wires .claude/settings.json
+./gx-sync.sh                        # pulls the hook, deploy.sh, serve.py, gx-dev.js, preflight;
+                                    # wires .claude/settings.json + .git/hooks/pre-push
 ```
 **After changing a shared file here:** each spoke re-runs `./gx-sync.sh` to pick it up. Commit
 `.gx_app` and `gx-sync.sh` in the spoke; `.gx_deploy_secret` stays untracked. CLAUDE.md is
