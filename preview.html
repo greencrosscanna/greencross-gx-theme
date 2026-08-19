@@ -15,7 +15,12 @@
          border:1px solid var(--gx-border);border-radius:var(--gx-radius);font-size:12px;}
   .pv-dot{width:14px;height:14px;border-radius:4px;}
   .pv-sw code{color:var(--gx-text-mute);font-size:11px;}
-  .gx-login{min-height:auto;padding:28px 0;}
+  /* Do NOT neuter .gx-login here. An earlier version overrode min-height and padding so the card
+     would sit neatly in the page -- which removed the component's own background, and with it the
+     ambient glow. The preview then showed a flat card that looked fine and hid a real gap. A preview
+     that restyles the thing it is previewing is worse than no preview. Give it real height instead. */
+  .pv-frame--login{min-height:520px;display:flex;}
+  .pv-frame--login .gx-login{flex:1;min-height:0;}
 </style></head><body>
 <div class="pv-wrap">
 
@@ -52,7 +57,7 @@
   <div class="pv-h">Login — Command Center treatment, Sales content structure</div>
   <p class="pv-note">Wordmark plus one uppercase subtitle. No pill, no second line. Inventory keeps its
      graphic in the <code>.gx-login-art</code> slot, on these same colours.</p>
-  <div class="pv-frame"><div class="gx-login"><div class="gx-login-card">
+  <div class="pv-frame pv-frame--login"><div class="gx-login"><div class="gx-login-card">
     <div class="gx-login-head">
       <img class="gx-login-mark" src="gx-logo.png" alt="Green Cross">
       <div class="gx-login-sub">Sales Dashboard</div>

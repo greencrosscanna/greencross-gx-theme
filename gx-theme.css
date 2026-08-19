@@ -28,6 +28,7 @@
   --gx-green-dim:     #2f8a52;
   --gx-green-ink:     #06210f;   /* text on a green fill */
   --gx-green-soft:    rgba(74,222,128,.10);
+  --gx-glow:          rgba(74,222,128,.07);   /* ambient page glow behind the login card */
   --gx-green-hair:    rgba(74,222,128,.03);
 
   /* ── Gold (highlights: #1 rank, superadmin, "special") ── */
@@ -165,9 +166,18 @@
          </form>
        </div>
      </div>                                                                                         */
-.gx-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--gx-bg);}
-.gx-login-card{width:100%;max-width:380px;background:var(--gx-surface);border:1px solid var(--gx-border);
-  border-radius:var(--gx-radius-lg);padding:30px 28px 28px;box-shadow:var(--gx-shadow-lg);}
+/* The three details that make this card read as finished rather than flat, all measured off the
+   Command Center: an ambient green glow thrown from above the card, a 2px gradient hairline across the
+   card's top edge, and a 12px radius (not the 10px used elsewhere). Without them the card is just a
+   grey box with the right colours in it. */
+.gx-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:var(--gx-bg) radial-gradient(1100px 560px at 50% -12%,var(--gx-glow),transparent 62%);}
+.gx-login-card{position:relative;overflow:hidden;width:100%;max-width:380px;background:var(--gx-surface);
+  border:1px solid var(--gx-border);border-radius:var(--gx-radius-xl);padding:30px 28px 28px;
+  box-shadow:var(--gx-shadow-lg);}
+/* ::before rather than a markup element, so an app adopting .gx-login needs no extra div. */
+.gx-login-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gx-green),transparent);opacity:.75;}
 /* Logo is CENTERED, like Leaderboard and Sales. The shared asset is gx-theme/gx-logo.png, so every
    app shows the same mark rather than its own inlined base64 copy. */
 .gx-login-head{text-align:center;margin:0 0 26px;}
