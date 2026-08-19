@@ -111,6 +111,14 @@
 .gx-btn:disabled { opacity: .55; cursor: default; }
 
 /* ── Inputs ── */
+/* box-sizing is SCOPED to the components this file owns, deliberately not a global `* { }` reset:
+   five apps load this stylesheet over their own CSS, and flipping box-sizing globally would resize
+   layouts none of this file wrote. Inputs default to content-box while buttons default to border-box,
+   so `width:100%` made an input 26px wider than the button beside it and pushed it past the card's
+   padding -- the two disagreed by exactly the padding plus border. */
+.gx-input, .gx-btn, .gx-login-card, .gx-login-submit, .gx-topnav, .gx-topnav-tab, .gx-user-btn,
+.gx-user-menu, .gx-user-item { box-sizing: border-box; }
+
 .gx-input {
   width: 100%; background: var(--gx-surface-3);
   border: 1px solid var(--gx-border); border-radius: var(--gx-radius);
