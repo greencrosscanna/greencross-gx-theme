@@ -68,6 +68,10 @@
 
 /* ── Base ── */
 .gx-app {
+  /* Tells the browser this surface is dark, so NATIVE control chrome follows: autofill backgrounds,
+     select arrows, date pickers, inner scrollbars, caret. Without it those render in the browser's
+     light scheme on top of dark CSS -- which is why an autofilled login box came out white. */
+  color-scheme: dark;
   background: var(--gx-bg);
   color: var(--gx-text);
   font-family: var(--gx-font);
@@ -120,6 +124,7 @@
 .gx-user-menu, .gx-user-item { box-sizing: border-box; }
 
 .gx-input {
+  color-scheme: dark;            /* also here: some controls render outside a .gx-app subtree */
   width: 100%; background: var(--gx-surface-3);
   border: 1px solid var(--gx-border); border-radius: var(--gx-radius);
   color: var(--gx-text); padding: 10px 12px; font-size: 14px; font-family: inherit;
@@ -127,6 +132,18 @@
 }
 .gx-input:focus { border-color: var(--gx-green-dim); box-shadow: 0 0 0 3px var(--gx-green-soft); }
 .gx-input::placeholder { color: var(--gx-text-mute); }
+/* Chrome paints autofilled inputs with its OWN background and ignores background-color entirely. A
+   1000px inset shadow is the only reliable way to reclaim it; the absurd transition delay stops the
+   yellow flash on fill. This is why the box looked right empty and white once a password manager
+   filled it -- the state we never tested. */
+.gx-input:-webkit-autofill,
+.gx-input:-webkit-autofill:hover,
+.gx-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--gx-surface-3) inset;
+  -webkit-text-fill-color: var(--gx-text);
+  caret-color: var(--gx-text);
+  transition: background-color 9999s ease-in-out 0s;
+}
 
 /* ── Pills & badges ── */
 .gx-pill {
