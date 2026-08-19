@@ -189,7 +189,7 @@
 /* Logo is CENTERED, like Leaderboard and Sales. The shared asset is gx-theme/gx-logo.png, so every
    app shows the same mark rather than its own inlined base64 copy. */
 .gx-login-head{text-align:center;margin:0 0 26px;}
-.gx-login-mark{display:block;height:26px;width:auto;margin:0 auto 10px;}
+.gx-login-mark{display:block;height:31px;width:auto;margin:0 auto 12px;}   /* 26px +20% */
 .gx-login-sub{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gx-text-mute);
   font-weight:700;margin:0;}
 .gx-login-art{margin:0 0 22px;border-radius:var(--gx-radius-md);overflow:hidden;}
