@@ -50,6 +50,20 @@
     paint();
   }
 
+  /* Late-arriving declarations: an app that assigns GX_DEV_READS after this file loads still works,
+     because check() consults the global as a fallback before deciding to block. */
+  function isDeclared(a) {
+    if (READS[a]) return true;
+    try {
+      if (Array.isArray(global.GX_DEV_READS)) {
+        for (var i = 0; i < global.GX_DEV_READS.length; i++) {
+          if (String(global.GX_DEV_READS[i]).toLowerCase() === a) { READS[a] = true; return true; }
+        }
+      }
+    } catch (e) {}
+    return false;
+  }
+
   /* The gate. Call this in the app's api chokepoint before every backend request.
    * Returns true when allowed. Throws a loud, actionable Error when blocked — deliberately
    * a throw and not a silent no-op, so a blocked write surfaces instead of looking like a
@@ -57,7 +71,7 @@
   function check(action) {
     if (!IS_DEV) return true;                     // production: inert
     var a = String(action || '').toLowerCase();
-    if (READS[a]) return true;                    // declared read: always fine
+    if (isDeclared(a)) return true;               // declared read: always fine
     if (armed()) { console.warn('[GXDev] ARMED — "' + a + '" is writing to LIVE data.'); return true; }
     var msg = '[GXDev] BLOCKED "' + a + '" — this is localhost talking to the LIVE backend, and "' + a +
               '" is not a declared read.\n' +
@@ -168,6 +182,11 @@
   }
 
   if (IS_DEV) {
+    // Apps declare reads by ASSIGNING window.GX_DEV_READS, not by calling declareReads() -- gx-dev.js
+    // is injected asynchronously (localhost only), so an app calling declareReads() inline would run
+    // before this file exists and its declaration would vanish, blocking every read it just declared.
+    // A plain array has no load-order dependency: set it whenever, it is drained here.
+    try { if (Array.isArray(global.GX_DEV_READS)) declareReads(global.GX_DEV_READS); } catch (e) {}
     guardFetch();          // install before the app makes its first request
     try {
       if (/[?&]arm=1\b/.test(global.location.search)) setArmed(true);
