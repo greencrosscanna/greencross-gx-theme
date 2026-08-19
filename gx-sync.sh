@@ -6,6 +6,7 @@
 #     curl -fsSL https://greencrosscanna.github.io/greencross-gx-theme/gx-sync.sh > gx-sync.sh
 #     chmod +x gx-sync.sh
 # Then, any time the shared files change upstream:   ./gx-sync.sh
+# It updates ITSELF first, so a stale copy can no longer silently skip newly-added shared files.
 # It fetches each canonical file and fills __APP__ from .gx_app, so the shared files stay identical
 # across every spoke and the app key lives in exactly one place per repo.
 set -eu
@@ -84,4 +85,4 @@ JSON
 else
   echo "  • .claude/settings.json exists — leave it; ensure it runs 'sh .claude/gx-brain-notes.sh' on SessionStart"
 fi
-echo "Done. (gx-sync.sh itself is not self-updating — re-copy it from gx-theme if it changes.)"
+echo "Done. (gx-sync.sh keeps itself up to date from here on.)"
