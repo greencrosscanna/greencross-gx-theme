@@ -116,6 +116,34 @@
     }
   }
 
+  /* Fetch-layer guard — for apps with no single api chokepoint.
+   * Sales and Inventory build backend URLs ad-hoc across dozens of call sites, so there is nothing to
+   * wire. Instead we wrap fetch in dev and read the action off the request.
+   * CRITICAL: only requests that actually CARRY an action are checked. A fetch with no action is a
+   * local asset (fixtures, style/tags.json, an image) and must pass through untouched — checking it
+   * would fail-safe into blocking the app's own files, which is worse than useless.
+   * Reads the action from the query string, or from a JSON POST body (the Price Cards shape). */
+  function guardFetch() {
+    if (!IS_DEV || !global.fetch || global.fetch.__gxWrapped) return;
+    var orig = global.fetch;
+    var wrapped = function (input, init) {
+      var action = null;
+      try {
+        var url = (typeof input === 'string') ? input : (input && input.url) || '';
+        var m = /[?&]action=([^&#]+)/.exec(url);
+        if (m) action = decodeURIComponent(m[1]);
+        if (!action && init && typeof init.body === 'string' && init.body.charAt(0) === '{') {
+          var b = JSON.parse(init.body);
+          if (b && b.action) action = b.action;
+        }
+      } catch (e) {}
+      if (action) check(action);          // throws when blocked — surfaces instead of silently failing
+      return orig.apply(this, arguments);
+    };
+    wrapped.__gxWrapped = true;
+    global.fetch = wrapped;
+  }
+
   function paint() {
     if (!IS_DEV || !global.document || !document.body) return;
     adjustLayout();
@@ -140,6 +168,7 @@
   }
 
   if (IS_DEV) {
+    guardFetch();          // install before the app makes its first request
     try {
       if (/[?&]arm=1\b/.test(global.location.search)) setArmed(true);
     } catch (e) {}
@@ -161,6 +190,7 @@
     disarm: function () { setArmed(false); },
     isArmed: armed,
     reads: function () { return Object.keys(READS).sort(); },
-    relayout: adjustLayout        // call by hand if a view swap ever leaves the bar overlapping
+    relayout: adjustLayout,       // call by hand if a view swap ever leaves the bar overlapping
+    guardFetch: guardFetch        // re-install if the app replaces window.fetch after we wrapped it
   };
 })(typeof window !== 'undefined' ? window : this);
