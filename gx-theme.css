@@ -246,7 +246,7 @@
    every app sets -webkit-font-smoothing:antialiased via .gx-app, which renders text visibly lighter
    than an unstyled page, so a weight that looks right in a mock reads thin in an actual app. */
 .gx-topnav-tab{flex-shrink:0;height:40px;padding:6px 12px;border:none;background:none;border-radius:0;
-  color:var(--gx-text-mute);font:700 12px/1 var(--gx-font);cursor:pointer;
+  color:var(--gx-text-mute);font:900 12px/1 var(--gx-font);cursor:pointer;
   transition:color .15s,box-shadow .15s;}
 .gx-topnav-tab:hover:not(.is-active){color:var(--gx-text);}
 .gx-topnav-tab.is-active{color:var(--gx-text);box-shadow:inset 0 -2px 0 var(--gx-green);}
