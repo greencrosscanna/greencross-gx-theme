@@ -214,6 +214,13 @@
   font-weight:700;margin:0;}
 .gx-login-art{margin:0 0 22px;border-radius:var(--gx-radius-md);overflow:hidden;}
 .gx-login-art img{display:block;width:100%;height:auto;}
+/* Artwork ABOVE the card rather than inside it: Inventory's portrait is the app's personality and
+   should read as its own thing, with the standard sign-in card beneath. Matched to the card's width so
+   the two align as one column. */
+.gx-login-stack{display:flex;flex-direction:column;align-items:center;gap:18px;width:100%;max-width:380px;}
+.gx-login-stack .gx-login-card{max-width:none;}
+.gx-login-above{display:block;width:100%;height:auto;border-radius:var(--gx-radius-xl);
+  box-shadow:var(--gx-shadow-lg);}
 .gx-login-form{display:grid;gap:14px;}
 .gx-login-field{display:grid;gap:6px;}
 .gx-login-field>span{font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--gx-text-mute);font-weight:600;}
