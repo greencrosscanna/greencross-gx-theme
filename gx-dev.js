@@ -108,6 +108,7 @@
   }
 
   function adjustLayout() {
+    if (isEmbedded()) return;   // no banner nested, so nothing to make room for
     reserveSpace();
     var sheets = (global.document && document.styleSheets) || [];
     for (var i = 0; i < sheets.length; i++) {
@@ -158,8 +159,20 @@
     global.fetch = wrapped;
   }
 
+  /* A nested app must not paint its own banner: the host already shows one, and two stacked banners
+     make an embed look like two apps bolted together rather than one. The GUARD still runs -- writes
+     stay blocked in the iframe -- only the chrome is suppressed. */
+  function isEmbedded() {
+    try {
+      if (/[?&]embed=1\b/.test(global.location.search)) return true;
+      if (/[?&]embed=0\b/.test(global.location.search)) return false;
+      return global.self !== global.top;
+    } catch (e) { return true; }
+  }
+
   function paint() {
     if (!IS_DEV || !global.document || !document.body) return;
+    if (isEmbedded()) return;
     adjustLayout();
     var on = armed();
     if (!banner) {

@@ -336,6 +336,12 @@
 html.gx-embedded .gx-topnav:not([data-gx-keep-nested]){display:none;}
 html.gx-embedded .gx-topnav[data-gx-keep-nested] .gx-topnav-brand,
 html.gx-embedded .gx-topnav[data-gx-keep-nested] .gx-topnav-right{display:none;}
+/* Nested, the sub-app's row must read as a SECOND-level nav under the host's, not as a peer bar that
+   happens to sit lower. Recessed surface, shorter, lighter tabs -- subordinate at a glance. */
+html.gx-embedded .gx-topnav[data-gx-keep-nested],
+html.gx-embedded .gx-subnav{background:var(--gx-surface-2);min-height:42px;padding-top:0;padding-bottom:0;}
+html.gx-embedded .gx-topnav-tab{height:34px;font-size:11.5px;}
+html.gx-embedded .gx-topnav-tab.is-active{box-shadow:inset 0 -2px 0 var(--gx-green);}
 html.gx-embedded [data-gx-standalone-only]{display:none !important;}
 html:not(.gx-embedded) [data-gx-embed-only]{display:none !important;}
 /* Nested, the host supplies the page background and its own padding around the frame. */
