@@ -1,5 +1,23 @@
 # greencross-gx-theme
 
+> ## ⚠️ core-admin owns this repo
+>
+> **App chats do not edit these files. Send a request to `core-admin` instead** — `add_note` with
+> `to_app = core-admin`, saying what you need and why.
+>
+> Five apps load `gx-theme.css`, `gx-client.js`, `gx-topnav.js`, `gx-avatar.js`, `gx-session.js` and
+> `gx-stores.js` **live from Pages**. A change here is not a change to one app: it reaches every app on
+> its next load, inside the 10-minute cache, with no deploy and no review in between. That is the point
+> of the shared layer, and the reason it should not have six editors.
+>
+> **Do not restyle a shared component from inside an app either.** A local rule that beats
+> `.gx-btn-green` or `.gx-input` wins for that app and silently diverges from the other five — which is
+> how the suite ended up with six different login screens.
+>
+> `theme-preflight.sh` blocks broken pushes; it cannot tell an authorised change from an unauthorised
+> one. That part is convention.
+
+
 The shared design language for every Green Cross app — one source of truth so the family stays
 visually consistent. Extracted from Leaderboard (the most refined app) + GX Core.
 
