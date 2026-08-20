@@ -309,3 +309,28 @@
   .gx-topnav{flex-wrap:wrap;padding:0 12px;gap:8px;}
   .gx-topnav-tabs{order:3;width:calc(100% + 24px);margin:0 -12px;padding:0 8px;border-top:1px solid var(--gx-border);}
 }
+
+/* ── Sub-app action row + embedded (nested) mode ──────────────────────────────────────────────────
+   The pattern for an app that runs BOTH standalone and nested inside a host dashboard (Price Cards
+   and SPIFF inside Inventory, embedded by iframe at their live URLs):
+
+     standalone   .gx-topnav  +  .gx-subnav
+     nested       .gx-subnav only -- the host already owns the top-level chrome
+
+   .gx-subnav is the sub-app's own controls, which are its identity in either context. It WRAPS
+   rather than shrinking: these are primary actions, and a row that overflows takes the whole page
+   sideways with it (which is exactly what Price Cards did when its buttons sat in .gx-topnav-right).
+
+   Controls that belong to only one context are marked declaratively, so no app branches in JS:
+     data-gx-embed-only        Settings, which lives in the user tray when standalone but has no
+                               tray to live in when nested -- the host owns that
+     data-gx-standalone-only                                                                        */
+.gx-subnav{display:flex;flex-wrap:wrap;align-items:center;gap:9px;padding:10px 20px;
+  background:var(--gx-surface);border-bottom:1px solid var(--gx-border);}
+@media (max-width:720px){ .gx-subnav{padding:10px 12px;} }
+
+html.gx-embedded .gx-topnav{display:none;}
+html.gx-embedded [data-gx-standalone-only]{display:none !important;}
+html:not(.gx-embedded) [data-gx-embed-only]{display:none !important;}
+/* Nested, the host supplies the page background and its own padding around the frame. */
+html.gx-embedded body{background:transparent;}

@@ -136,6 +136,44 @@
     return slot.querySelector('.gx-user-btn');
   }
 
+  /* ── EMBEDDED (nested sub-app) MODE ──────────────────────────────────────────────────────────────
+     Price Cards and SPIFF are embedded in Inventory by iframe, pointing at their live URLs -- the
+     nested instance is the SAME deployed page. So a sub-app has to know which context it is in:
+
+       standalone   full .gx-topnav (logo, clock, user chip) + its own action row
+       nested       NO top-level nav -- the host already provides that chrome. Only the action row,
+                    and Settings joins it, because the user tray it would otherwise live in belongs
+                    to the host.
+
+     Detection prefers an explicit ?embed=1 over iframe sniffing: Inventory itself runs inside a GAS
+     iframe, so "am I framed" is ambiguous in this suite, and an explicit flag can also be opened
+     directly to review the embedded layout without a host.
+
+     Apps mark controls declaratively; no JS branching needed:
+       data-gx-embed-only        shown ONLY when nested   (e.g. the Settings button in the action row)
+       data-gx-standalone-only   shown ONLY when standalone
+     and the html element carries .gx-embedded, which hides .gx-topnav via gx-theme.css. */
+  function isEmbedded() {
+    try {
+      if (/[?&]embed=1\b/.test(global.location.search)) return true;
+      if (/[?&]embed=0\b/.test(global.location.search)) return false;   // explicit opt-out wins
+      return global.self !== global.top;
+    } catch (e) {
+      return true;   // cross-origin access threw, which itself means we are framed
+    }
+  }
+
+  /* Applied to <html> as early as possible: waiting for DOMContentLoaded lets the top nav paint and
+     then vanish, which reads as a layout glitch on every embedded load. */
+  function applyEmbedClass() {
+    try {
+      var root = global.document && global.document.documentElement;
+      if (root) root.classList.toggle('gx-embedded', isEmbedded());
+    } catch (e) {}
+  }
+  applyEmbedClass();
+
   global.GXTopNav = { init: init, renderUser: renderUser, startClock: startClock, stopClock: stopClock,
-                      paintClock: paintClock, closeAll: closeAll };
+                      paintClock: paintClock, closeAll: closeAll,
+                      isEmbedded: isEmbedded, applyEmbedClass: applyEmbedClass };
 })(typeof window !== 'undefined' ? window : this);
