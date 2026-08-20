@@ -31,7 +31,13 @@
 
   function url(cfg, seed) {
     cfg = cfg || {};
-    var params = ['seed=' + encodeURIComponent(seed || 'unknown')];
+    /* A stamped cfg.seed WINS over the caller's seed, and is emitted once.
+       Crew pins seed to employee_number so a rename cannot scramble a face; the caller's seed is
+       derived from the name and is exactly what that pinning exists to stop mattering.
+       Emitting both is not harmless: DiceBear honours the FIRST occurrence of a duplicated param
+       (measured, not assumed), so while the attribute loop below re-emitted cfg.seed as a second
+       seed=, the stamped value silently lost to the name every time and the pinning did nothing. */
+    var params = ['seed=' + encodeURIComponent(cfg.seed || seed || 'unknown')];
     var noAccessories = cfg.accessories === '_none';
     var noFacialHair  = cfg.facialHair  === '_none';
     var isGcHat       = cfg.top === '_gchat';
@@ -41,6 +47,7 @@
     Object.keys(cfg).forEach(function (k) {
       var v = cfg[k];
       if (v == null || v === '_none') return;
+      if (k === 'seed') return;   // already emitted above — re-emitting it duplicates the param
       if (k === 'top' && isGcHat) { params.push('top=shortFlat'); return; }
       if (k === 'accessoriesColor' && noAccessories) return;
       if (k === 'facialHairColor'  && noFacialHair)  return;
