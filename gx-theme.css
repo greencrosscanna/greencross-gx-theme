@@ -329,7 +329,13 @@
   background:var(--gx-surface);border-bottom:1px solid var(--gx-border);}
 @media (max-width:720px){ .gx-subnav{padding:10px 12px;} }
 
-html.gx-embedded .gx-topnav{display:none;}
+/* Nested: strip the top-level chrome. But an app whose OWN tabs live in the bar (SPIFF) would lose its
+   navigation with it, so that case keeps the bar and drops only the parts the host already provides --
+   brand, clock, user chip. Mark such a header data-gx-keep-nested. An app with no tabs (Price Cards)
+   needs no marker and the bar goes entirely. */
+html.gx-embedded .gx-topnav:not([data-gx-keep-nested]){display:none;}
+html.gx-embedded .gx-topnav[data-gx-keep-nested] .gx-topnav-brand,
+html.gx-embedded .gx-topnav[data-gx-keep-nested] .gx-topnav-right{display:none;}
 html.gx-embedded [data-gx-standalone-only]{display:none !important;}
 html:not(.gx-embedded) [data-gx-embed-only]{display:none !important;}
 /* Nested, the host supplies the page background and its own padding around the frame. */
