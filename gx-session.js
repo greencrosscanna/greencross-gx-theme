@@ -76,15 +76,25 @@
         if (!originAllowed(e.origin)) return;
         finish(e.data.session || null);
       }
-      function cleanup() {
+      var cleanup = function () {
         try { global.removeEventListener('message', onMsg); } catch (err) {}
         clearTimeout(timer);
-      }
+      };
       var timer = setTimeout(function () { finish(null); }, timeoutMs);
       try {
         if (global.self === global.top) return finish(null);   // not nested: nobody to ask
         global.addEventListener('message', onMsg);
-        global.parent.postMessage({ type: REQ }, '*');
+        /* ASK REPEATEDLY, not once. postMessage is not queued: if the host has not registered its
+           listener yet the message is simply dropped, and a single attempt then waits out the whole
+           timeout and falls back to a login the user should never have seen. The host embeds the
+           iframe in its own HTML, so the child routinely loads and asks BEFORE the host's script has
+           run -- asking once works only when the ordering happens to favour it. */
+        var ask = function () { try { global.parent.postMessage({ type: REQ }, '*'); } catch (e) {} };
+        ask();
+        var poll = setInterval(function () { if (done) { clearInterval(poll); return; } ask(); }, 200);
+        var stop = setTimeout(function () { clearInterval(poll); }, timeoutMs);
+        var origCleanup = cleanup;
+        cleanup = function () { clearInterval(poll); clearTimeout(stop); origCleanup(); };
       } catch (err) { finish(null); }
     });
   }
