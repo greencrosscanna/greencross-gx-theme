@@ -155,6 +155,12 @@
      and the html element carries .gx-embedded, which hides .gx-topnav via gx-theme.css. */
   function isEmbedded() {
     try {
+      // A page can state it outright, and that beats every guess below. Needed because "am I framed"
+      // is genuinely ambiguous in this suite: Apps Script serves HtmlService pages INSIDE ITS OWN
+      // IFRAME, so a top-level app like the Command Center looks nested and had its whole header
+      // hidden by the rule this flag feeds. That frame is Google's chrome, not a host app.
+      // Set `window.GX_EMBED = false` (or true) BEFORE this script loads.
+      if (typeof global.GX_EMBED === 'boolean') return global.GX_EMBED;
       if (/[?&]embed=1\b/.test(global.location.search)) return true;
       if (/[?&]embed=0\b/.test(global.location.search)) return false;   // explicit opt-out wins
       return global.self !== global.top;
