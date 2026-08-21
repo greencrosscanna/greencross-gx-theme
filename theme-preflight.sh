@@ -107,8 +107,31 @@ for f in sorted(glob.glob('commands/*.md')):
         bad.append(n + ' — unbalanced code fence (markdown will swallow the rest of the file)')
     if n == 'README.md':
         continue
+    # _partial.md files are INCLUDED into commands, not installed as commands. Frontmatter in one
+    # would land mid-file in whatever includes it, and a nested include is a loop the installer
+    # refuses -- so partials get the opposite checks.
+    if n.startswith('_'):
+        if s.startswith('---'):
+            bad.append(n + ' — a partial must NOT have frontmatter (it would land mid-file)')
+        if '@include' in s:
+            bad.append(n + ' — a partial cannot include another partial (the installer refuses it)')
+        continue
     if not s.startswith('---') or 'description:' not in s.split('---')[1]:
         bad.append(n + ' — missing frontmatter with a description:')
+
+# every include must name a partial that exists, and must sit alone on its line -- both are
+# install-time failures otherwise, on somebody elses machine, after a push.
+have = set(os.path.basename(f) for f in glob.glob('commands/_*.md'))
+for f in sorted(glob.glob('commands/*.md')):
+    n = os.path.basename(f)
+    for i, line in enumerate(io.open(f, encoding='utf-8'), 1):
+        if '<!-- @include ' not in line:
+            continue
+        name = line.split('<!-- @include ', 1)[1].split(' -->', 1)[0]
+        if name not in have:
+            bad.append('%s:%d — includes %s, which does not exist' % (n, i, name))
+        if line.split('<!-- @include', 1)[0].strip():
+            bad.append('%s:%d — an include must be alone on its line' % (n, i))
 print('\n'.join(bad))
 PY
 )"
@@ -117,7 +140,8 @@ PY
     printf '%s\n' "$_bad" | sed 's/^/      /'
     FAIL=1
   else
-    echo "  ✓ commands/ — $(ls commands/*.md | wc -l | tr -d ' ') files, frontmatter + fences intact"
+    _nc=$(ls commands/*.md | grep -v "/_" | grep -vc "README"); _np=$(ls commands/_*.md 2>/dev/null | wc -l | tr -d " ")
+    echo "  ✓ commands/ — $_nc commands + $_np partials, frontmatter + fences + includes intact"
   fi
 fi
 
