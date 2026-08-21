@@ -38,9 +38,21 @@ if not notes: sys.exit(0)
 # The board grew faster than it drained because most notes were acknowledgments — they still had to be
 # read and resolved while asking for nothing. A banner that prints a 2,500-character "done" note at the
 # same weight as a real request teaches you to skim past both.
+DONE_WORDS = ("closed", "resolved", "done", "shipped", "deployed", "retraction",
+              "correction", "acknowledged", "answered", "stand down", "no action")
 def is_fyi(n):
-    if str(n.get("kind", "")).strip().lower() == "fyi": return True
-    return str(n.get("title", "")).strip().startswith("\u2705")
+    # DISPLAY-ONLY heuristic, deliberately more generous than the one that decides EXPIRY.
+    # Only kind=fyi ever auto-closes; this just decides what collapses in the banner. So a note
+    # titled "RESOLVED: … but one question" gets tucked into the skim list and still waits for a
+    # human — being wrong here costs a glance, whereas being wrong about expiry loses a request.
+    # Needed because the ✅ convention is owned by core-admin, while the spokes write CLOSED / RESOLVED / DONE.
+    k = str(n.get("kind", "")).strip().lower()
+    if k == "fyi": return True
+    if k == "ask": return False
+    t = str(n.get("title", "")).strip()
+    if t.startswith("\u2705"): return True
+    low = t.lower()
+    return any(low.startswith(w) for w in DONE_WORDS)
 asks = [n for n in notes if not is_fyi(n)]
 fyis = [n for n in notes if is_fyi(n)]
 app = d.get("app", "this app")
