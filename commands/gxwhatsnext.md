@@ -10,7 +10,7 @@ next work from GX Core (the Command Center's AI digest + build order) — so you
 board, right here, without switching to the Command Center. The order is Claude's dependency-aware build
 sequence, kept fresh in the CC.
 
-`<GXCORE>` = `https://script.google.com/macros/s/AKfycbx9mjeCBbDpxNYaqBv2hyZaO1hpbGG6PZM9AebFdwl0UwkdtRCGSWrH-8ohEtdF1K_6/exec`
+<!-- @include _gxcore.md -->
 
 ## Do this
 1. **Identify THIS app's key** from its `CLAUDE.md` (the app key it uses with the brain): one of
@@ -73,22 +73,15 @@ sequence, kept fresh in the CC.
      ```
    - **Implement** it in this repo, follow the app's own `CLAUDE.md` + the shared `/gxbrain` rules, verify in
      the running app.
-   - **Ship** per the app's model — spoke apps open a **PR** and report `dev_update … status=in_review
-     pr_url=…` (never merge; Sky merges = ship); `core-admin` deploys directly with Sky watching. On merge/ship,
+   - **Ship** per the ship policy — which depends on the SIZE of the change, not just the app:
+
+     <!-- @include _ship-policy.md -->
+
      `dev_ship` (or `dev_update … status=done`) closes the loop and auto-completes the Asana to-do.
 
 Keep it tight: a one-line housekeeping result, then a short "in flight / next up / then" readout, then offer to
 build the top one. The point is to keep momentum inside the app chat.
 
-## Closing out — don't wait to be asked
-When the task's goals look met — the moment you'd naturally say "that should do it" — **proactively tell Sky it
-looks complete and offer to ship/close it out.** Sessions usually resolve with that kind of language on their
-own; the explicit offer is what makes it actually get shipped and cleared from the Command Center. Shipping
-(PR → `dev_update … status=in_review`; on merge → `dev_ship`; `core-admin` deploys directly → `dev_ship`)
-auto-completes the Asana to-do. Don't leave a finished task sitting `working`.
+## Closing out
 
-**Then offer to archive this chat.** Once `dev_ship` succeeds — and only then, never at `in_review`, since a
-PR can still bounce back with review comments — ask Sky whether to archive the session, and call
-`archive_session` with `session_id: "self"` only if he says yes. One chat per task means a shipped chat is
-finished, and archiving clears it from the tray (it stays reopenable from the Archived list). Never archive
-speculatively or without an explicit yes.
+<!-- @include _closeout.md -->

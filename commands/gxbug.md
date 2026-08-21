@@ -8,7 +8,7 @@ Center triages. Works from any app chat.
 
 Report: "$ARGUMENTS"
 
-`<GXCORE>` = `https://script.google.com/macros/s/AKfycbx9mjeCBbDpxNYaqBv2hyZaO1hpbGG6PZM9AebFdwl0UwkdtRCGSWrH-8ohEtdF1K_6/exec`
+<!-- @include _gxcore.md -->
 
 ## 1. Work out which app it is against
 

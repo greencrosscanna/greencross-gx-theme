@@ -13,7 +13,8 @@ Optional app-name hint from the user: "$ARGUMENTS".
   relationship — an iframe embed in the parent + a GX Core routing entry — **not** a merged codebase.
 - Shared runtime assets come from **gx-theme** by URL (`gx-theme.css`, `gx-client.js`). Shared dev files
   (SessionStart hook, `deploy.sh`) are pulled from gx-theme via **`gx-sync.sh`**, filled from `.gx_app`.
-- GX Core URL: `https://script.google.com/macros/s/AKfycbx9mjeCBbDpxNYaqBv2hyZaO1hpbGG6PZM9AebFdwl0UwkdtRCGSWrH-8ohEtdF1K_6/exec`
+- GX Core URL:
+  <!-- @include _gxcore.md -->
 - gx-theme Pages base: `https://greencrosscanna.github.io/greencross-gx-theme`
 
 ## Ground rules

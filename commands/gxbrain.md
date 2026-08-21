@@ -33,122 +33,48 @@ the brain and report status**. **"brain sync" / "sync brain" are aliases for THI
 Cross-app coordination lives in GX Core's central **brain_notes** inbox (not per-repo files). A note
 addressed to any app now reaches it. Use this app's key (see its `CLAUDE.md`) as `<APP>`, the shared secret
 from `.gx_deploy_secret`, and the GX Core exec URL as
-`<GXCORE>` = `https://script.google.com/macros/s/AKfycbx9mjeCBbDpxNYaqBv2hyZaO1hpbGG6PZM9AebFdwl0UwkdtRCGSWrH-8ohEtdF1K_6/exec`
 
-1. **Read your inbox** — pending notes addressed to THIS app (the SessionStart hook also prints these):
-   ```
-   curl -sL -G "<GXCORE>" --data-urlencode action=notes --data-urlencode "secret=$(cat .gx_deploy_secret)" \
-     --data-urlencode app=<APP> --data-urlencode status=pending
-   ```
-   Also check the actual integration state: `GXCore` library pin, `gxIngestBug`, changelog from
-   `version_history`, auto-record via `deploy_version`.
-   *Legacy (until this app is migrated): if the repo still has a `BRAIN_NOTES.md` with a non-empty
-   `## Pending`, handle those too — that file's coordination role is being retired for the central inbox.*
-1b. **Read your open bugs** — reports users filed against THIS app (from GX Core's `bug_reports`, the
-   Master Control bug board). Treat these like inbox items: reproduce, fix, verify, deploy.
-   ```
-   curl -sL -G "<GXCORE>" --data-urlencode action=bugs --data-urlencode "secret=$(cat .gx_deploy_secret)" \
-     --data-urlencode app=<APP> --data-urlencode status=open
-   ```
-   (Omit `status` for the open backlog by default; pass `status=all` to see resolved too.) Surface each
-   bug to me before fixing — don't silently start on user-reported issues.
-2. **Do each pending item.** App-local UI/logic: implement, **verify in the running app**, then deploy.
-   Config/binding (e.g. the `GXCore` pin): apply, redeploy, follow any auth prompt. Commit — stage only your
-   own files, never `git add -A`.
-3. **Resolve WITH a resolution — that IS your reply. Do not also write a note back.**
-   ```
-   curl -sL -G "<GXCORE>" --data-urlencode action=resolve_note --data-urlencode "secret=$(cat .gx_deploy_secret)" \
-     --data-urlencode id=<NOTE_ID> --data-urlencode by=<APP> \
-     --data-urlencode 'resolution=what you actually did — one or two sentences'
-   ```
-   The sender sees the note went to done, by whom, and what came of it, in their own outbox. That is
-   everything a "✅ done" note carried, without occupying an inbox slot that demands its own read and
-   resolve.
+<!-- @include _gxcore.md -->
 
-   **This step used to say "write note-backs — this is the whole point", and that instruction is what
-   made the board grow faster than it drained.** Measured across 202 notes: every core-admin/spoke pair
-   had run 19–32 notes for ONE relationship, and only 15 of 177 resolutions said anything at all. Each
-   reply created work for somebody else, who replied, and so on. A note should have ONE lifecycle —
-   created, then resolved with a line saying what happened.
+**Also check the actual integration state**, not just the inbox: this app's `GXCore` library pin, that
+bugs forward via `gxIngestBug`, its changelog from `version_history`, and auto-record via `deploy_version`.
 
-   And **close each fixed bug** the same way:
-   ```
-   curl -sL -G "<GXCORE>" --data-urlencode action=bug_update --data-urlencode "secret=$(cat .gx_deploy_secret)" \
-     --data-urlencode id=<BUG_ID> --data-urlencode status=resolved --data-urlencode 'resolution=…'
-   ```
-4. **Write a NEW note only for a genuinely NEW ask** — something the other app has to decide or do that
-   it does not already know. Not to confirm receipt, not to say you finished, not to say thanks.
-   ```
-   curl -sL -G "<GXCORE>" --data-urlencode action=add_note --data-urlencode "secret=$(cat .gx_deploy_secret)" \
-     --data-urlencode from_app=<APP> --data-urlencode to_app=<TARGET> \
-     --data-urlencode 'title=…' --data-urlencode 'body=…' --data-urlencode kind=ask
-   ```
-   `<TARGET>` is another app's key: `inventory`, `performance`, `sales`, `pricecards`, `spiff`, `crew`
-   or `core-admin`.
+<!-- @include _notes-discipline.md -->
 
-   **`kind`**: `ask` needs a decision or an action; `fyi` is informational, collapses in the reader's
-   banner, and closes itself after 7 days. A **✅ in the title is read as fyi automatically** — so if a
-   note contains an ask, it does not get a ✅. Asks never auto-expire at any age.
+*Legacy (until this app is migrated): if the repo still has a `BRAIN_NOTES.md` with a non-empty
+`## Pending`, handle those too — that file's coordination role is being retired for the central inbox.*
 
-   **Before writing one, check your OUTBOX** — what you sent may already have been answered:
-   ```
-   curl -sL -G "<GXCORE>" --data-urlencode action=notes_sent --data-urlencode "secret=$(cat .gx_deploy_secret)" \
-     --data-urlencode app=<APP> --data-urlencode since=<ISO timestamp of your last check>
-   ```
-   Returns each note you sent with its status, who resolved it, and their resolution. Report anything
-   that came back — but **do not resolve or reply to your own outbox entries**; they are already closed.
-5. **Work your dispatched worker jobs.** The Command Center dispatches Asana to-dos into GX Core's
-   `dev_queue`; THIS app chat is the worker that builds them (in-repo, where you verify locally). Check for
-   jobs, claim the oldest, implement + verify, then ship per the **ship policy below**. See `WORKER.md`.
+**Do each pending item.** App-local UI/logic: implement, **verify in the running app**, then deploy.
+Config/binding (e.g. the `GXCore` pin): apply, redeploy, follow any auth prompt. Commit — stage only your
+own files, never `git add -A`.
 
-   **Ship policy (refined 2026-08-14 — staff use Leaderboard + Inventory daily, so don't let them watch a
-   feature bake):** match the flow to the change.
-   - **Pages-hosted spokes** (`inventory`, `sales`, `performance`, `pricecards`):
-     - **Small / instant fix** (rename a tab, copy tweak, a contained bug fix that's correct the moment it
-       lands) → **ship DIRECT to `main`**: commit only your changed files, run `deploy.sh` (git push `main` →
-       Pages + `clasp deploy` for the proxy + records `deploy_version`), verify live, then **`dev_ship`**.
-     - **Feature** (new capability, iterative, changes a workflow, or would look half-done mid-build) →
-       develop on a **`feat/…` branch + PR**, iterate there, **merge only when done + verified** (staff see it
-       appear once, working). Preview without exposing staff via a **`cfg.<feature>` flag** (ship dark, flip on
-       from the cockpit) or a local preview; the versioned proxy stages backend without repointing the live one.
-     - Test: *"Would staff notice it mid-bake / does it change their workflow?"* → branch. Trivial/invisible → direct.
-   - **GX Core / the shared `GXCore` library** (`core-admin`) **keep PR + versioned discipline** — library
-     versions are immutable and pinned by every spoke, so a bad one silently breaks all apps. (`core-admin`
-     itself deploys directly with Sky watching, but treats library-version cuts as gated.)
-   - Full rationale + the flag pattern: **DEV_NOTES.md** in the GX Core repo.
-   ```
-   curl -sL -G "<GXCORE>" --data-urlencode action=dev_queue --data-urlencode app=<APP> --data-urlencode "secret=$(cat .gx_deploy_secret)"   # list
-   curl -sL -G "<GXCORE>" --data-urlencode action=dev_claim --data-urlencode app=<APP> --data-urlencode "secret=$(cat .gx_deploy_secret)"   # claim oldest queued → working
-   curl -sL -G "<GXCORE>" --data-urlencode action=dev_ship   --data-urlencode "secret=$(cat .gx_deploy_secret)" --data-urlencode id=<JOB_or_TASK_GID> --data-urlencode 'notes=…'   # spoke: shipped direct
-   # (GX Core / library work only: dev_update … status=in_review pr_url=<PR>, then dev_ship on merge)
-   ```
-   Only `core-admin` (the Command Center) dispatches; every other app chat is a worker for its own jobs.
-6. **Always end with a SYNC REPORT:** what's integrated with GX Core, what you did / deployed /
-   **resolved and with what resolution**, dispatched jobs worked, anything your OUTBOX came back with,
-   and what's outstanding. If your inbox + job queue are empty and everything's integrated, say
-   **"in sync"** with the one-line status.
+**Work your dispatched worker jobs.** The Command Center dispatches Asana to-dos into GX Core's
+`dev_queue`; THIS app chat is the worker that builds them (in-repo, where you verify locally). Check for
+jobs, claim the oldest, implement + verify, then ship per the ship policy below. See `WORKER.md`.
 
-   **A round where you resolved five notes and sent none is a GOOD round, not a quiet one.** The
-   measure is whether the work landed, not how much traffic it generated. If you find yourself about to
-   send a note that mostly says "done", it belongs in the `resolution=` of the note you are resolving.
+<!-- @include _ship-policy.md -->
 
-   **NAME THINGS BY WHAT THEY ARE, NOT BY THEIR ID.** `note_mt23v37p_ag8r` means nothing to me — it's a
-   database key, and reading a report full of them is work I have to do to figure out what you're even
-   talking about. Same for `job_mswisetb_6dmr`, `bug_…`, and Asana gids. Refer to an item by its SUBJECT:
-   *"the v161 re-pin note"*, *"the SPIFF re-enable hold"*, *"Tawny's duplicate-SKU bug"*. If I need to act
-   on one myself, put the id in parentheses after the name — once — or in a trailing column. Never as the
-   thing I'm expected to recognize.
+```
+curl -sL -G "<GXCORE>" --data-urlencode action=dev_queue --data-urlencode app=<APP> --data-urlencode "secret=$(cat .gx_deploy_secret)"   # list
+curl -sL -G "<GXCORE>" --data-urlencode action=dev_claim --data-urlencode app=<APP> --data-urlencode "secret=$(cat .gx_deploy_secret)"   # claim oldest queued → working
+curl -sL -G "<GXCORE>" --data-urlencode action=dev_ship   --data-urlencode "secret=$(cat .gx_deploy_secret)" --data-urlencode id=<JOB_or_TASK_GID> --data-urlencode 'notes=…'
+# (feature work: dev_update … status=in_review pr_url=<PR>, then dev_ship on merge)
+```
+Only `core-admin` (the Command Center) dispatches; every other app chat is a worker for its own jobs.
 
-   Bad:  `Resolved note_mt0uumdh_6cgl, note_mt24no67_7si; note_mt23v37p_ag8r still pending.`
-   Good: `Resolved two: the SPIFF re-enable hold (shipped in v2.97) and the avatar-seed correction
-          (nothing for us to do). Still open: core-admin's yes on the libversion snippet — it wants me
-          to hand it to the other spokes.`
+**Always end with a SYNC REPORT:** what's integrated with GX Core, what you did / deployed /
+**resolved and with what resolution**, dispatched jobs worked, anything your OUTBOX came back with, and
+what's outstanding. If your inbox + job queue are empty and everything's integrated, say **"in sync"**
+with the one-line status.
 
-   The same rule applies to versions and hashes: *"pinned v153, Core is at v168"* is useful; a bare sha or
-   a deployment id is not, unless I asked for it or need to paste it somewhere.
+<!-- @include _naming.md -->
+
+<!-- @include _closeout.md -->
+
 
 (The SessionStart hook `.claude/gx-brain-notes.sh` reads this same inbox + open bugs — the passive
 heads-up; `/gxbrain` is the active reconcile.)
+
 
 ## The business
 Green Cross — 6-store cannabis retailer: Bend, Center, Commercial, Hillsboro, Portland Rd, River Rd.
