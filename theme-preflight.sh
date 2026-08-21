@@ -90,6 +90,37 @@ PY
   fi
 fi
 
+# ── Shared slash commands ────────────────────────────────────────────────────────────────────────
+# These are shared assets like the scripts above: /gxappstart scaffolds every future app, /gxbrain is
+# how every chat orients. They are installed into ~/.claude/commands by gx-commands-sync.sh, so a
+# broken one here reaches every machine that syncs. An unbalanced code fence is the nasty case --
+# markdown silently swallows the rest of the file, so the command still "works" while missing half
+# its instructions.
+if [ -d commands ]; then
+  _bad="$(python3 - <<'PY'
+import io, glob, os
+bad = []
+for f in sorted(glob.glob('commands/*.md')):
+    n = os.path.basename(f)
+    s = io.open(f, encoding='utf-8').read()
+    if s.count('```') % 2:
+        bad.append(n + ' — unbalanced code fence (markdown will swallow the rest of the file)')
+    if n == 'README.md':
+        continue
+    if not s.startswith('---') or 'description:' not in s.split('---')[1]:
+        bad.append(n + ' — missing frontmatter with a description:')
+print('\n'.join(bad))
+PY
+)"
+  if [ -n "$_bad" ]; then
+    echo "  ✗ commands/ — a broken command reaches every machine that syncs:"
+    printf '%s\n' "$_bad" | sed 's/^/      /'
+    FAIL=1
+  else
+    echo "  ✓ commands/ — $(ls commands/*.md | wc -l | tr -d ' ') files, frontmatter + fences intact"
+  fi
+fi
+
 if [ "$FAIL" = "1" ]; then
   echo ""
   echo "PUSH BLOCKED — this repo feeds every app. Fix the ✗ items, or bypass with: git push --no-verify"
