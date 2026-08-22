@@ -90,7 +90,14 @@ fi
 # localhost URLs) can't reach Pages. Never clobber a hook that already does something else.
 if [ -d .git ]; then
   if [ ! -f .git/hooks/pre-push ] || grep -q gx-preflight .git/hooks/pre-push 2>/dev/null; then
-    printf '#!/bin/sh\nexec ./gx-preflight.sh\n' > .git/hooks/pre-push
+    # `exec sh ./gx-preflight.sh`, NOT `exec ./gx-preflight.sh`. Invoking it directly requires the
+    # executable bit, and that bit does not survive reliably here: these repos live in Dropbox
+    # CloudStorage, which reverts modes asynchronously AFTER a sync finishes — so chmod appears to
+    # work, an immediate -x check passes, and the file is 0600 again a moment later. On 2026-08-22
+    # that took the bit off gx-preflight.sh in four repos and every push died with
+    # "Permission denied": the guard did not weaken, it stopped running.
+    # Running it through sh makes the guard independent of a mode we cannot keep.
+    printf '#!/bin/sh\nexec sh ./gx-preflight.sh\n' > .git/hooks/pre-push
     chmod +x .git/hooks/pre-push
     echo "  + .git/hooks/pre-push -> gx-preflight.sh"
   else
