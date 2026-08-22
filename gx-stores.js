@@ -1,10 +1,26 @@
 /* GX Stores — the store registry, read from GX Core instead of reinvented per app.
- * Canonical source: greencross-gx-theme/gx-stores.js. Synced into every spoke by gx-sync.sh.
+ * Canonical source: greencross-gx-theme/gx-stores.js.
+ *
+ * NOT synced into spokes by gx-sync.sh -- it is not in that script's fetch list, and never was.
+ * Like gx-theme.css and gx-client.js it is loaded BY URL from Pages:
+ *     <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-stores.js"></script>
+ * which means an edit here reaches every app on its next load, with no deploy and no review in
+ * between. (The header claimed it was synced until 2026-08-22. It matters which: a synced file is
+ * pinned per repo until someone re-syncs; this one is not pinned at all.)
  *
  * WHY THIS EXISTS
  * GX Core's `stores` tab is already the single source of truth and already publishes everything an
- * app needs -- including a `color` column -- via ?action=stores. Apps were duplicating it anyway:
- * Leaderboard hardcoded all six store colors as CSS variables, byte-identical to the registry's.
+ * app needs -- including a `color` column -- via ?action=stores. This is the one client for it, so
+ * apps do not each write their own.
+ *
+ * WHAT IT IS NOT: a fix for apps that ignore the registry. As of 2026-08-22 every spoke already
+ * reads it -- Inventory via GXCore.getStores() in its proxy, Sales via fetchStoresMeta, Price Cards
+ * via loadStores, Crew via loadStores, Leaderboard via GC.loadStoreColors, SPIFF via this file --
+ * each keeping a hardcoded table as a first-paint/offline fallback, which is what gx-conventions.md
+ * prescribes. What is still duplicated is the OVERLAY CODE: six bespoke implementations of "fetch
+ * the registry, merge it over my local table". Consolidating those onto this client is the real
+ * remaining win, and it is a refactor of six live apps -- not a doc change. Do it deliberately,
+ * with a way to verify each app afterwards.
  *
  * THE MAPPING TRAP THIS CLOSES
  * store_id and display_name are NOT the same, and one store proves it: store_id "bend" has
