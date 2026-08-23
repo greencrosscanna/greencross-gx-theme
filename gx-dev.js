@@ -68,6 +68,21 @@
    * Returns true when allowed. Throws a loud, actionable Error when blocked — deliberately
    * a throw and not a silent no-op, so a blocked write surfaces instead of looking like a
    * backend that returned nothing. */
+  /* Every action this gate has BLOCKED, action -> count.
+   *
+   * check() already console.error()s and throws, which sounds like enough. It is not, and this cost a
+   * real verification: a consumer wrapped its GX Core call in the try/catch that implements its
+   * FALLBACK chain, the gate's throw was caught by that catch, the fallback served the same numbers
+   * from the old path, and the test reported success. The Core path had never run. Nothing was hidden
+   * — the console.error was right there — but the RESULT looked correct, and a result that looks
+   * correct is what people check.
+   *
+   * A fallback is precisely the shape that swallows this, and every app in the suite has fallbacks by
+   * design. So the block has to surface somewhere the app cannot catch: the banner, and a value a test
+   * can ASSERT on (GXDev.blocked()). If you are verifying a new backend route from localhost, assert
+   * this is empty — otherwise you are testing your fallback. */
+  var BLOCKED = {};
+
   function check(action) {
     if (!IS_DEV) return true;                     // production: inert
     var a = String(action || '').toLowerCase();
@@ -78,6 +93,8 @@
               '  • If it IS a read, add it to GXDev.declareReads([...]) in this app.\n' +
               '  • If it is a write and you mean it, click ARM WRITES in the banner (or run GXDev.arm()).';
     console.error(msg);
+    BLOCKED[a] = (BLOCKED[a] || 0) + 1;
+    try { paint(); } catch (e) {}          // hoisted; a paint failure must not mask the throw
     throw new Error(msg);
   }
 
@@ -192,6 +209,22 @@
       'text-transform:uppercase;cursor:pointer;border:1px solid currentColor;background:transparent;' +
       'color:inherit;border-radius:3px;padding:0 7px;line-height:16px;">' + (on ? 'disarm' : 'arm writes') + '</button>';
     document.getElementById('gx-dev-arm').onclick = function () { setArmed(!armed()); };
+
+    // Blocked actions get their OWN chip, in their own colour, so it reads the same whether or not
+    // writes are armed. This is the half of the gate an app's fallback cannot swallow.
+    var names = Object.keys(BLOCKED);
+    if (names.length) {
+      var chip = document.createElement('span');
+      chip.style.cssText = 'pointer-events:auto;margin-left:10px;padding:0 7px;border-radius:3px;' +
+        'background:#7f1d1d;color:#fff;cursor:help;line-height:16px;display:inline-block;';
+      chip.textContent = '⛔ blocked: ' + names.map(function (n) {
+        return BLOCKED[n] > 1 ? n + '×' + BLOCKED[n] : n;
+      }).join(', ');
+      chip.title = 'gx-dev.js refused these calls because they are not declared reads. If your app ' +
+                   'has a fallback path, it probably served stale data and looked fine. Add them to ' +
+                   'GX_DEV_READS in this app, or arm writes.';
+      banner.appendChild(chip);
+    }
   }
 
   if (IS_DEV) {
@@ -216,6 +249,10 @@
 
   global.GXDev = {
     isDev: IS_DEV,
+    /* {action: count} of everything the gate refused. ASSERT THIS IS EMPTY when verifying that a new
+       backend route actually ran — a fallback chain turns a blocked call into a plausible success. */
+    blocked: function () { var o = {}; for (var k in BLOCKED) if (BLOCKED.hasOwnProperty(k)) o[k] = BLOCKED[k]; return o; },
+    clearBlocked: function () { BLOCKED = {}; try { paint(); } catch (e) {} },
     check: check,
     declareReads: declareReads,
     arm: function () { setArmed(true); },
