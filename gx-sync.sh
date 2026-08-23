@@ -89,6 +89,28 @@ for f in .claude/gx-brain-notes.sh deploy.sh serve.py gx-preflight.sh gxengine.s
   chmod 755 "$f" 2>/dev/null || true
   [ -x "$f" ] || _notexec="$_notexec $f"
 done
+# A file can be 755 on disk and still recorded 100644 in git. gx-sync chmods correctly every run, so
+# the tree then reports the file as MODIFIED forever, with a zero-line diff nobody can resolve by
+# editing anything. Two repos are in that state today (inventory/serve.py, spiff/serve.py,
+# spiff/deploy.sh) and each rediscovered it separately as "is gx-sync stripping the bit?" — it is not.
+# The bit was committed wrong once, upstream is 100755, and only `git update-index` fixes an index.
+#
+# chmod cannot fix this and neither can gx-sync: the index belongs to the spoke's repo. So say so,
+# precisely, with the command — an unfixable dirty file teaches people to ignore `git status`.
+_badmode=""
+for f in .claude/gx-brain-notes.sh deploy.sh serve.py gx-preflight.sh gxengine.sh; do
+  [ -f "$f" ] || continue
+  case "$(git ls-files -s "$f" 2>/dev/null | awk '{print $1}')" in
+    100644) [ -x "$f" ] && _badmode="$_badmode $f" ;;
+  esac
+done
+if [ -n "$_badmode" ]; then
+  echo "  ! executable on disk but recorded 100644 in git:$_badmode"
+  echo "    Your tree will show these as modified forever, with an empty diff. gx-sync cannot fix an"
+  echo "    index. Upstream is 100755; commit the bit once and it stops:"
+  echo "      git update-index --chmod=+x$_badmode && git commit -m 'track the executable bit on the shared scripts'"
+fi
+
 if [ -n "$_notexec" ]; then
   echo "  ✗ NOT EXECUTABLE after chmod:$_notexec"
   echo "    The pre-push hook execs gx-preflight.sh, so this breaks every push until fixed:"
