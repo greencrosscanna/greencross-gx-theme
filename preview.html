@@ -76,15 +76,38 @@
      <code>hillsboro</code> as <strong>Baseline</strong> — which is why the variable is the ID, never the name.</p>
   <div class="pv-swatches" id="pvStores"><span class="pv-note">loading…</span></div>
 
+  <div class="pv-h">Bug report — one shared form, replacing four</div>
+  <p class="pv-note">Built entirely by <code>gx-bugreport.js</code>; no app writes this markup. It replaces
+     three near-identical local copies (21 <code>.bug-*</code> CSS rules each) plus Price Cards'
+     <code>window.prompt()</code>, and gives SPIFF and Crew a reporter they never had.
+     Open it and expand <em>“What gets sent with this”</em> — every report carries the reporter's state
+     (route, viewport, browser, last console error, plus whatever the app adds). That snapshot is what
+     this suite has <em>instead</em> of an attached screenshot: a browser POST to GX Core does not work,
+     so an image has no transport, but text rides the same GET the report already rides.</p>
+  <p class="pv-note">Submitting here is a no-op — the preview passes a stub transport, so nothing is filed.</p>
+  <div style="margin:0 20px;"><button class="gx-btn-green" id="pvBug" type="button">Open the bug form</button></div>
+
 </div>
 <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-client.js"></script>
 <script src="gx-topnav.js"></script>
 <script src="gx-stores.js"></script>
+<script src="gx-bugreport.js"></script>
 <script>
   GXTopNav.init(); GXTopNav.startClock();
   document.addEventListener('gx-topnav:action', function(e){
     document.getElementById('pvEcho').textContent = 'gx-topnav:action → ' + e.detail.action;
   });
+  /* Stub transport: the preview must never file a real bug. Also suppresses the floating FAB —
+     a fixed-position button hovering over a component gallery is noise, not a preview. */
+  GXBugReport.init({
+    app: 'core-admin', action: 'bugreport', fab: false,
+    reporter: function(){ return 'preview'; },
+    version:  function(){ return 'preview'; },
+    context:  function(){ return { note: 'gx-theme preview — nothing is filed' }; },
+    submit:   function(){ return Promise.resolve({ ok: true }); }
+  });
+  document.getElementById('pvBug').addEventListener('click', function(){ GXBugReport.open(); });
+
   GXStores.load('https://script.google.com/macros/s/AKfycbx9mjeCBbDpxNYaqBv2hyZaO1hpbGG6PZM9AebFdwl0UwkdtRCGSWrH-8ohEtdF1K_6/exec')
     .then(function(rows){
       document.getElementById('pvStores').innerHTML = rows.map(function(s){

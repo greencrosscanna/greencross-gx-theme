@@ -353,3 +353,65 @@ html.gx-embedded [data-gx-standalone-only]{display:none !important;}
 html:not(.gx-embedded) [data-gx-embed-only]{display:none !important;}
 /* Nested, the host supplies the page background and its own padding around the frame. */
 html.gx-embedded body{background:transparent;}
+
+/* ── Bug report ───────────────────────────────────────────────────────────────────────────────────
+   Paired with gx-bugreport.js, which builds all of this markup — no app hand-writes it.
+
+   These rules replace 21 near-identical local .bug-* rules in EACH of inventory, leaderboard and
+   sales (63 in all), plus Price Cards' window.prompt(), which had no styling because it had no form.
+   The class prefix is .gx-bug-, not .bug-, on purpose: an app can load this and delete its local
+   block in either order without the two fighting over a shared name mid-migration.
+
+   Colours are tokens only. The local copies hardcoded --amber/--red/--card from each app's own
+   variable set, which is exactly how the same modal ended up three slightly different colours. */
+.gx-bug-fab{position:fixed;bottom:20px;right:20px;z-index:200;width:44px;height:44px;border-radius:50%;
+  background:var(--gx-surface);border:1px solid var(--gx-border);color:var(--gx-text-dim);
+  font-size:19px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:border-color .15s,color .15s;}
+.gx-bug-fab:hover{border-color:var(--gx-green);color:var(--gx-green);}
+/* The host app owns the corner when nested — two floating bug buttons stacked on one screen is worse
+   than one, and the parent's reporter files to the same board with the right tab discriminator. */
+html.gx-embedded .gx-bug-fab{display:none;}
+
+.gx-bug-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;
+  align-items:center;justify-content:center;padding:16px;}
+.gx-bug-overlay.open{display:flex;}
+.gx-bug-modal{background:var(--gx-surface);border:1px solid var(--gx-border);border-radius:var(--gx-radius-md);
+  width:100%;max-width:440px;max-height:90vh;overflow-y:auto;padding:20px;
+  display:flex;flex-direction:column;gap:14px;font-family:var(--gx-font);}
+.gx-bug-hdr{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;
+  color:var(--gx-text);}
+.gx-bug-close{background:none;border:none;color:var(--gx-text-mute);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px;}
+.gx-bug-close:hover{color:var(--gx-text);}
+.gx-bug-label{font-size:11px;color:var(--gx-text-mute);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.gx-bug-opt{text-transform:none;letter-spacing:0;color:var(--gx-text-mute);font-weight:400;}
+.gx-bug-input,.gx-bug-textarea{width:100%;background:var(--gx-bg);border:1px solid var(--gx-border);
+  border-radius:var(--gx-radius);color:var(--gx-text);padding:8px 10px;font-size:13px;
+  box-sizing:border-box;font-family:inherit;}
+.gx-bug-input:focus,.gx-bug-textarea:focus{outline:none;border-color:var(--gx-green);}
+.gx-bug-textarea{resize:vertical;min-height:80px;}
+.gx-bug-pri{display:flex;gap:8px;}
+.gx-bug-pri-btn{flex:1;padding:9px 0;border-radius:var(--gx-radius);border:1px solid var(--gx-border);
+  background:none;color:var(--gx-text-mute);font-size:12px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:border-color .15s,color .15s,background .15s;}
+.gx-bug-pri-btn:hover{color:var(--gx-text-dim);}
+.gx-bug-pri-btn.sel-low{border-color:var(--gx-green-dim);color:var(--gx-green);background:var(--gx-green-soft);}
+.gx-bug-pri-btn.sel-normal{border-color:var(--gx-gold-line);color:var(--gx-gold);background:var(--gx-gold-soft);}
+.gx-bug-pri-btn.sel-high{border-color:var(--gx-red);color:var(--gx-red);background:var(--gx-red-soft);}
+
+/* The snapshot is disclosed, not hidden: it carries the URL and browser string, so the person filing
+   can read exactly what they are about to send before they send it. */
+.gx-bug-ctx{border:1px solid var(--gx-border);border-radius:var(--gx-radius);background:var(--gx-surface-2);}
+.gx-bug-ctx summary{cursor:pointer;padding:8px 10px;font-size:11.5px;color:var(--gx-text-mute);user-select:none;}
+.gx-bug-ctx summary:hover{color:var(--gx-text-dim);}
+.gx-bug-ctx pre{margin:0;padding:0 10px 10px;font-size:10.5px;line-height:1.5;color:var(--gx-text-mute);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-all;
+  max-height:180px;overflow-y:auto;}
+
+.gx-bug-submit{padding:10px;border-radius:var(--gx-radius);border:1px solid var(--gx-green);
+  background:var(--gx-green);color:var(--gx-green-ink);font-size:13px;font-weight:700;cursor:pointer;
+  font-family:inherit;transition:opacity .15s;}
+.gx-bug-submit:hover{opacity:.9;}
+.gx-bug-submit:disabled{opacity:.4;cursor:default;}
+.gx-bug-status{font-size:12px;color:var(--gx-red);min-height:15px;text-align:center;}
+.gx-bug-success{text-align:center;padding:18px 0;font-size:13.5px;color:var(--gx-green);font-weight:600;}
