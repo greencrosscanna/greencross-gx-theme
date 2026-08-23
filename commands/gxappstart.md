@@ -60,53 +60,38 @@ Let `KEY`=slug, `REPO`=greencross-$KEY, `PAGES`=https://greencrosscanna.github.i
 
 a. **Create the repo (CONFIRM first).** `gh repo create greencrosscanna/$REPO --public` (remote only),
    then in this folder: `git init`, add the origin remote. Don't push yet.
-b. **Scaffold the frontend — load the WHOLE shared layer, and do NOT hand-roll chrome.**
+b. **Scaffold the frontend — fetch the template, do NOT hand-roll chrome.**
 
-   Every app in the suite has been migrated onto shared nav, avatars, session and store helpers. A new
-   app that only links `gx-theme.css` + `gx-client.js` starts out *already needing that migration*, so
-   scaffold all of it up front. Load order matters — the two inline blocks must sit where shown.
+   The canonical head + shell is a real file in gx-theme, not a snippet in this document:
 
-   ```html
-   <link rel="stylesheet" href="https://greencrosscanna.github.io/greencross-gx-theme/gx-theme.css">
-
-   <!-- BEFORE gx-dev.js: every GX Core action this app reads. An action NOT in this list is BLOCKED on
-        localhost, and GXDev.check throws SYNCHRONOUSLY from inside jsonp — a sync throw sails past
-        .catch(), so if the call sits in boot it aborts everything after it. It is also a RACE: on a cold
-        load the call can go out before gx-dev arms, so it fails only sometimes. -->
-   <script>window.GX_DEV_READS = ['login', 'stores', 'version_history'];   // add every read you use</script>
-
-   <!-- BEFORE gx-topnav.js: declares "I am the top-level app, not a widget nested in a host." -->
-   <script>window.GX_EMBED = false;</script>
-
-   <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-client.js"></script>
-   <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-stores.js"></script>
-   <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-avatar.js"></script>
-   <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-session.js"></script>
-   <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-topnav.js"></script>
-   <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-dev.js"></script>
-
-   <!-- AFTER gx-topnav.js, and not optional. Pages caches shared scripts for ~10 minutes, so right after
-        a theme change the browser may still be running a copy that has never heard of GX_EMBED. Setting
-        the flag alone did NOT fix this when it happened — verified, not assumed. Clear the class too. -->
-   <script>
-   (function () {
-     try { if (window.GX_EMBED === false) document.documentElement.classList.remove('gx-embedded'); }
-     catch (e) {}
-   })();
-   </script>
+   ```sh
+   curl -fsSL https://greencrosscanna.github.io/greencross-gx-theme/gx-app-template.html > index.html
    ```
 
-   - `index.html`: `<title>`, the block above, then `<header class="gx-topnav">` — **use the shared nav,
-     do not build a topbar**. Tabs are `<button class="tab gx-topnav-tab" data-tab="…">`; a secondary row
-     is `.gx-subnav`. Login uses `.gx-login` / `.gx-login-card` / `.gx-input` / `.gx-btn-green`.
-     Load the app JS with a **`?v=1`** cache-buster — that single number is the source of truth
-     `deploy.sh` reads for the version.
+   Then fill its three placeholders — `__APP_TITLE__`, `__APP_JS__`, `__GX_READS__` — and delete the
+   leading explainer comment block. Read the rest of the comments before changing anything: each one
+   marks a production failure that has already happened once (the dev-guard 404 on every kiosk load,
+   the `GX_EMBED` override that hides or doubles the header, per-app 2.8MB touch icons).
+
+   *This step used to be a prose code block here, and it drifted: until 2026-08-22 it prescribed a
+   direct `<script src=".../gx-dev.js">` tag and an unconditional `window.GX_EMBED = false`, neither of
+   which appears in ANY of the six live apps. A new app built from it began life already needing two
+   migrations everyone else had finished. Keep the template in gx-theme — next to the scripts it loads,
+   where a change is visible — and keep this step a fetch.*
+
    - **Never restyle a shared component locally.** A local override of `.gx-btn-green` or `.gx-input`
      wins for this app and silently diverges from the other six — which is how the suite ended up with
      six different login screens. Need a change? Send core-admin a note; only core-admin edits gx-theme.
+   - **Do not set `window.GX_EMBED`.** gx-topnav.js auto-detects, and its order is
+     `GX_EMBED` > `?embed=1` > `self !== top`. Both shapes a new app can take are already handled: a
+     standalone Pages app is top-level, and a sub-app is loaded by its parent as `?embed=1`. Setting the
+     flag *overrides the parent's signal*, so a sub-app scaffolded with `false` paints a second full
+     header inside the Inventory iframe. Only an HtmlService-served page needs the flag (Apps Script
+     renders its own iframe, so `self !== top` lies) — that is core-admin, and only core-admin.
    - `<key>.js`: a `"use strict"` IIFE stub wired to gx-client for GX Core calls.
    - If **backend**: an `apps-script/` dir with `appsscript.json` + `Code.gs` (a doGet/doPost router in
      the GX Core style), and set up clasp (`clasp create --type webapp --rootDir apps-script`).
+
 c. **Adopt the shared scaffolding:**
    ```sh
    echo $KEY > .gx_app

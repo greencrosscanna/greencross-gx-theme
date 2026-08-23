@@ -1,0 +1,125 @@
+<!-- ─── gx-app-template.html — the canonical <head> + shell for a new GX suite app ──────────────────
+     CANONICAL SOURCE: greencross-gx-theme/gx-app-template.html
+     Fetched by /gxappstart (commands/gxappstart.md step 4b). Do not paste a hand-written head block
+     into a new app — copy this file and fill the __PLACEHOLDERS__.
+
+     WHY THIS FILE EXISTS
+     The scaffold used to live as a prose code block inside gxappstart.md. It drifted: by 2026-08-22 it
+     still prescribed a direct `<script src=".../gx-dev.js">` tag and an unconditional
+     `window.GX_EMBED = false`, and NEITHER appears in any of the six live apps. A new app built from it
+     started out needing two migrations that every existing app had already done — the exact opposite of
+     "start from the right template". Prose in a command file has nothing checking it against reality;
+     a file in gx-theme sits next to the scripts it loads, so a change there is visible here.
+
+     PLACEHOLDERS to fill:
+       __APP_TITLE__   browser title + the nav sub-label, e.g. "Crew"
+       __APP_JS__      the app's own JS filename, e.g. "crew.js"
+       __GX_READS__    every GX Core action this app READS (dev guard allowlist)
+─────────────────────────────────────────────────────────────────────────────────────────────────── -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Icons: shared from gx-theme, absolute, so every app is identical and nothing is copied per
+       repo. Two DIFFERENT images on purpose:
+         favicon          dark mark, sized for a browser tab strip
+         apple-touch-icon green mark at 180x180, the size iOS actually uses for an iPhone home
+                          screen. iOS strips transparency and composites on the wallpaper, so the
+                          vibrant square reads there where a dark one would disappear.
+       The old per-app touch icons were 1254x1254 / ~2.8MB — roughly 7x more resolution than iOS
+       ever uses, downloaded on every page load. -->
+  <link rel="icon" type="image/png" href="https://greencrosscanna.github.io/greencross-gx-theme/gc-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://greencrosscanna.github.io/greencross-gx-theme/gc-touch-icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__APP_TITLE__</title>
+
+  <!-- Shared GX runtime (theme + resilient GX Core client) — same-origin org Pages -->
+  <link rel="stylesheet" href="https://greencrosscanna.github.io/greencross-gx-theme/gx-theme.css">
+
+  <!-- GX dev-guard bootstrap — keep in sync with gx-dev-boot.html, which is its canonical source.
+       This REPLACES the old `<script src=".../gx-dev.js">` tag. Do not "simplify" it back:
+
+         1. The plain tag requested a file on EVERY page load, including kiosks. When the file was not
+            committed in that repo it 404ed every time (Leaderboard v1.506); when it was, the kiosk
+            downloaded a dev-only script it can never use.
+         2. A RELATIVE src cannot resolve on a GAS-served page — HtmlService sandboxes the document to
+            a different origin — so there the guard was silently ABSENT rather than inert. Nothing
+            signalled it, which is worse than the 404.
+
+       Loading it only on localhost fixes both: production never makes the request at all, and the URL
+       is absolute so it resolves from any origin, GAS included. -->
+  <script>
+  (function () {
+    var h = location.hostname;
+    if (!(h === 'localhost' || h === '127.0.0.1' || h === '::1' ||
+          /^192\.168\./.test(h) || /^10\./.test(h))) return;   // production: do nothing at all
+    var s = document.createElement('script');
+    s.src = 'https://greencrosscanna.github.io/greencross-gx-theme/gx-dev.js';
+    s.async = false;   // keep execution order relative to other injected scripts
+    document.head.appendChild(s);
+  })();
+  </script>
+
+  <!-- EMBED: deliberately NOT set here. gx-topnav.js decides in this order —
+         window.GX_EMBED (a boolean)  >  ?embed=1 / ?embed=0  >  self !== top
+       The auto-detect is CORRECT for both shapes a new app can take:
+         · standalone Pages app   → top-level → not embedded ✓
+         · sub-app in an Inventory iframe → the parent loads it as `?embed=1` ✓
+       Hardcoding `window.GX_EMBED = false` breaks the second case, and breaks it invisibly in this
+       repo: the flag is checked BEFORE the query param, so it overrides the `?embed=1` the parent
+       passes and the sub-app paints a second full header inside the host. Only set the flag if this
+       page is served by HtmlService (Apps Script renders its own iframe, so `self !== top` lies —
+       that is why the Command Center, and only the Command Center, sets it). -->
+
+  <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-client.js"></script>
+  <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-topnav.js"></script>
+  <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-stores.js"></script>
+  <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-avatar.js"></script>
+  <!-- gx-session.js: add it if this app manages its own sign-in session (inventory, pricecards, spiff
+       load it; leaderboard and sales do not). Not every app needs it — don't cargo-cult it in. -->
+
+  <script>
+    // Dev guard: non-mutating actions. Anything NOT listed is blocked when this page is served from
+    // localhost, until writes are armed (banner button / ?arm=1 / GXDev.arm()). Inert in production.
+    // Add new READS here; leave writes off the list, and note the guarded writes in a comment so the
+    // next reader knows the omission was deliberate rather than forgotten.
+    window.GX_DEV_READS = [__GX_READS__];
+  </script>
+
+  <style>
+    /* Shell layout only. Every colour comes from gx-theme.css tokens — never hardcode one here, or
+       the app drifts out of the suite's look the next time the theme moves.
+       And never restyle a SHARED component (.gx-btn-green, .gx-input, .gx-topnav…) from this file: a
+       local rule wins for this app and silently diverges from the other six. That is how the suite
+       ended up with six different login screens. The test is "should all six get this?" — if yes,
+       send core-admin a note; only core-admin edits gx-theme. */
+    body { margin: 0; min-height: 100vh; font-size: 15px; }
+  </style>
+</head>
+<body class="gx-app">
+  <!-- Shared chrome: .gx-topnav lives in gx-theme.css, so a refinement there reaches every app.
+       Use it — do NOT build a topbar. Tabs and the user chip depend on session/state, so the app's
+       own JS fills them via GXTopNav.init() / GXTopNav.renderUser(); this is just the frame.
+       Tabs are <button class="tab gx-topnav-tab" data-tab="…">; a secondary row is .gx-subnav.
+       Login markup is .gx-login / .gx-login-card / .gx-input / .gx-btn-green.
+       Controls that differ by context are declarative, not JS branches:
+         data-gx-embed-only        shown ONLY when nested
+         data-gx-standalone-only   shown ONLY when standalone -->
+  <header class="gx-topnav" id="topnav">
+    <div class="gx-topnav-brand">
+      <img class="gx-topnav-logo" src="https://greencrosscanna.github.io/greencross-gx-theme/gx-logo.png" alt="Green Cross">
+      <span class="gx-topnav-sub">__APP_TITLE__</span>
+    </div>
+    <nav class="gx-topnav-tabs" id="navTabs"></nav>
+    <div class="gx-topnav-right">
+      <div class="gx-clock"><div class="gx-clock-time">—</div><div class="gx-clock-date">—</div></div>
+      <div id="userSlot"></div>
+    </div>
+  </header>
+
+  <main id="app" class="gx-main"><!-- rendered by __APP_JS__ --></main>
+
+  <!-- ?v=N is the single source of truth deploy.sh reads for the version. Bump on each ship. -->
+  <script src="__APP_JS__?v=1"></script>
+</body>
+</html>
