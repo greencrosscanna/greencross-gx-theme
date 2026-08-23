@@ -18,16 +18,24 @@
  * 63 duplicated CSS rules, three spellings of one action, and two apps with no reporter. Adding one
  * field to "the bug form" meant four edits and two ports. That is the whole case for this file.
  *
- * ── THE CONTEXT SNAPSHOT (the answer to "can we attach a screenshot?") ───────────────────────────
- * No, and this is the thing that replaces it. A browser POST to GX Core /exec does not work — tested
- * against live Core from a real page origin: GET reads fine, POST fails outright — and
- * GX_GET_WRITES_AND_THE_SECRET.md already ruled "do not fix this by adding a doPost". An image has no
- * transport. Text does: it rides the same GET the bug already rides.
+ * ── THE CONTEXT SNAPSHOT (what we do instead of attaching a screenshot) ──────────────────────────
+ * Every report carries route, filters, viewport, browser and the last console error, captured
+ * automatically — the user types nothing extra. For the reports people actually file this beats a
+ * picture: "the store filter is stuck" needs to say WHICH filter was set, and a screenshot of a chart
+ * does not.
  *
- * It is also the better artefact for the reports people actually file. "The store filter is stuck"
- * needs to know WHICH filter was set; a screenshot of a chart does not say. So every report carries
- * route, filters, viewport, browser and the last console error, captured automatically — the user
- * types nothing extra.
+ * BE ACCURATE ABOUT WHY THERE IS NO IMAGE, because the first version of this comment was not. It said
+ * an image "has no transport". That is FALSE. A cross-origin browser POST to an Apps Script web app
+ * works and its response is readable — measured from the production origin, and Price Cards' bug
+ * reporter has been doing exactly that in production the whole time. What is true is narrower: GX Core
+ * has no `doPost`, so it cannot receive one; a spoke's OWN engine can, and Sales and Price Cards
+ * already do.
+ *
+ * So images are a COST decision, not an impossibility: an upload sink, Drive storage, a screenshot_url
+ * column, and a capture step (html2canvas is ~200KB on every load and only approximates the render;
+ * getDisplayMedia gives real pixels but prompts the user to pick a window every time). Sky's call on
+ * 2026-08-23 was to ship the text snapshot first and revisit images only if a real report needs one.
+ * That call still stands — but if you reopen it, reopen it on the cost, not on a false impossibility.
  *
  * Console errors are captured only from the moment this script loads, and only the last few. It is a
  * breadcrumb, not a log: anything bigger belongs in the app's own telemetry, and GX Core truncates
