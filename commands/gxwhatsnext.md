@@ -31,9 +31,22 @@ sequence, kept fresh in the CC.
    - **Do NOT regenerate the digest.** Never call `action=ai_strategy` here — it's slow (~60s+) and expensive,
      and Sky regenerates it himself in the Command Center cockpit. Just read whatever digest is current.
    - **Report a housekeeping summary** before moving on — a compact "🧹 Cleaned up" block:
-     `N done jobs cleared · M notes purged · K bugs closed`. Then list **anything still
-     pending that needs Sky, NUMBERED starting at [1]** (each surviving pending note / open bug on its own
-     numbered line). This is the proof the board is fresh, and it seeds the running item numbers for step 4.
+     `N done jobs cleared · M notes purged · K bugs closed`, then **one line per item you actually closed,
+     naming it and ending the line with a ✅** (job shipped/cleared, note resolved, bug closed) — so the
+     done work is scannable at a glance instead of hiding inside a count. Purged resolved notes stay a
+     count only; they were already closed. Then list **anything still pending that needs Sky, NUMBERED
+     starting at [1]** (each surviving pending note / open bug on its own numbered line, **no ✅** — the
+     checkmark means done, never "seen"). This is the proof the board is fresh, and it seeds the running
+     item numbers for step 4.
+
+     ```
+     🧹 Cleaned up — 2 done jobs cleared · 3 notes purged · 1 bug closed
+        Send to Managers button (job 412, merged) ✅
+        Note: employees tab needs an email column ✅
+        Bug #57 store filter drops Baseline ✅
+     Still pending:
+        [1] Note from `sales`: confirm the new goal payload shape
+     ```
 3. **Fetch this app's next work:**
    ```
    curl -sL --http1.1 -G "<GXCORE>" --data-urlencode action=whats_next \
