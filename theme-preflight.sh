@@ -145,6 +145,24 @@ PY
   fi
 fi
 
+# ── tests ────────────────────────────────────────────────────────────────────────────────────────
+# The parse checks above prove these files are syntactically valid JS. They cannot prove the shared
+# layer still BEHAVES — and this repo is loaded live from Pages by five apps, so a behavioural
+# regression here ships to all of them with no deploy and no review in between. Anything with a test
+# gets it run on the way out.
+if ls tests/*_test.js >/dev/null 2>&1; then
+  for t in tests/*_test.js; do
+    out="$(node "$t" 2>&1)"
+    if [ $? -eq 0 ]; then
+      echo "  ✓ $t — $(echo "$out" | grep -Eo '[0-9]+ passed, [0-9]+ failed' | tail -1)"
+    else
+      echo "  ✗ $t"
+      echo "$out" | grep -E "FAIL|Error|error" | head -12 | sed 's/^/      /'
+      FAIL=1
+    fi
+  done
+fi
+
 if [ "$FAIL" = "1" ]; then
   echo ""
   echo "PUSH BLOCKED — this repo feeds every app. Fix the ✗ items, or bypass with: git push --no-verify"
