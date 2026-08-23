@@ -1,0 +1,6 @@
+# sha256 of each vendored file AS FETCHED. Regenerate only when deliberately re-vendoring.
+c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99  vendor/xlsx@0.18.5/xlsx.full.min.js
+bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859  vendor/jsqr@1.4.0/jsQR.js
+660b12437b1d747e3e68b8be0685c08cb728140110ad213f167b14b66f8b1d8e  vendor/html5-qrcode@2.3.8/html5-qrcode.min.js
+c5837e4858a3775173bab09ee36e6052545c7880c9d7452e2f464770c6e642ce  vendor/zxing@0.19.1/index.min.js
+74401d738dd3e03ee5dfb3b6841210fe2c4ead8a960c4011ca4ba0b78a9fd8f3  vendor/chartjs@4.4.1/chart.umd.js
