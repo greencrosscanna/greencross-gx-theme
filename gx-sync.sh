@@ -89,14 +89,21 @@ for f in .claude/gx-brain-notes.sh deploy.sh serve.py gx-preflight.sh gxengine.s
   chmod 755 "$f" 2>/dev/null || true
   [ -x "$f" ] || _notexec="$_notexec $f"
 done
-# A file can be 755 on disk and still recorded 100644 in git. gx-sync chmods correctly every run, so
-# the tree then reports the file as MODIFIED forever, with a zero-line diff nobody can resolve by
-# editing anything. Two repos are in that state today (inventory/serve.py, spiff/serve.py,
-# spiff/deploy.sh) and each rediscovered it separately as "is gx-sync stripping the bit?" — it is not.
-# The bit was committed wrong once, upstream is 100755, and only `git update-index` fixes an index.
+# A file can be 755 on disk and still recorded 100644 in git — the tree then reports it MODIFIED
+# forever, with a zero-line diff no edit can resolve, because the wrong bit is in the INDEX.
 #
-# chmod cannot fix this and neither can gx-sync: the index belongs to the spoke's repo. So say so,
-# precisely, with the command — an unfixable dirty file teaches people to ignore `git status`.
+# THE CAUSE IS `git add -A`, NOT A ONE-OFF BAD COMMIT. gx-sync writes these files through mktemp+mv,
+# which lands them 0644, then chmods to 755. Commit with `git add -A` or `commit -a` in the window
+# before the chmod and a zero-line mode change rides along inside an unrelated commit. Nobody sees it:
+# it adds no lines to the diff and the commit is about something else entirely.
+#
+# Traced through inventory's serve.py, which was created 100755 and broken TWICE by ride-alongs:
+#     47a8b12  created                                    -> 100755
+#     3de02f8  "Adopt gxengine.sh ..."           100755    -> 100644   (ride-along)
+#     4f01457  "Restore the executable bit ..."  100644    -> 100755   (deliberate fix)
+#     6d0e56d  "gx-preflight now runs tests ..." 100755    -> 100644   (ride-along, one commit later)
+# So `update-index` alone does NOT make it stick — 4f01457 proves that; the very next commit undid it.
+# The habit is the fix, which is why the message below leads with the habit.
 _badmode=""
 for f in .claude/gx-brain-notes.sh deploy.sh serve.py gx-preflight.sh gxengine.sh; do
   [ -f "$f" ] || continue
@@ -106,9 +113,11 @@ for f in .claude/gx-brain-notes.sh deploy.sh serve.py gx-preflight.sh gxengine.s
 done
 if [ -n "$_badmode" ]; then
   echo "  ! executable on disk but recorded 100644 in git:$_badmode"
-  echo "    Your tree will show these as modified forever, with an empty diff. gx-sync cannot fix an"
-  echo "    index. Upstream is 100755; commit the bit once and it stops:"
-  echo "      git update-index --chmod=+x$_badmode && git commit -m 'track the executable bit on the shared scripts'"
+  echo "    Your tree shows these modified forever with an empty diff. Fix the index:"
+  echo "      git update-index --chmod=+x$_badmode && git commit -m 'track the executable bit'"
+  echo "    Then keep it fixed: DO NOT 'git add -A' or 'commit -a' in a repo gx-sync touches."
+  echo "    That is what broke it — a zero-line mode change riding along in an unrelated commit."
+  echo "    Name your files explicitly and it cannot happen."
 fi
 
 if [ -n "$_notexec" ]; then
