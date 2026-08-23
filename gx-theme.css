@@ -320,7 +320,19 @@
 /* ── Version-history / What's New popup (gx-changelog.js) ─────────────────────────────────────────
    Promoted out of Leaderboard, which had the only complete implementation. Inventory, Sales and the
    Command Center each had their own; Price Cards, SPIFF and Crew had none, so their Version row was
-   a dead label. One modal now, styled here, so a fix reaches all seven. */
+   a dead label. One modal now, styled here, so a fix reaches all seven.
+
+   THE SHARED STACKING ORDER, lowest to highest — check it before adding a layer:
+     60    .gx-user-menu     the user tray, anchored under its chip
+     200   .gx-bug-fab       floating report button
+     300   .gx-bug-overlay   bug form
+     1000  .gx-cl-overlay    this popup — above the bug form, since you can open it from the tray
+     9999  .gx-login         the sign-in gate, which must cover EVERYTHING
+   The login gate winning is deliberate, not an accident of ordering: a modal that paints over a
+   sign-in screen is showing app data to someone who has not signed in. The consequence to know is
+   that opening this popup before login renders it INVISIBLY behind the gate rather than failing
+   loudly — so gate any auto-popup on the session, which is what GXChangelog's `whatsNew` option is
+   for. */
 .gx-cl-overlay{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;
   justify-content:center;z-index:1000;padding:20px;}
 .gx-cl-overlay.gx-cl-open{display:flex;}
