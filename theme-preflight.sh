@@ -165,12 +165,24 @@ fi
 # gets it run on the way out.
 if ls tests/*_test.js >/dev/null 2>&1; then
   for t in tests/*_test.js; do
-    out="$(node "$t" 2>&1)"
-    if [ $? -eq 0 ]; then
+    # `if out="$(...)"` and NOT `out=...` followed by `[ $? -eq 0 ]`. Under the `set -eu` at the top,
+    # a failing assignment aborts the script THERE — so the ✗ branch, FAIL=1 and the PUSH BLOCKED
+    # message below were all unreachable, and a failing test blocked the push while printing nothing
+    # about why. That is exactly what happened on 2026-08-23: deploy_version_test.js failed with
+    # "LOAD FAILED", git said only "failed to push some refs", and the reason had to be traced with
+    # `sh -x`. A gate that blocks silently teaches people to reach for --no-verify.
+    # An assignment inside an `if` condition is exempt from errexit, which is why this form works —
+    # it is the form gx-preflight.sh and the hub's run-tests.sh already use.
+    if out="$(node "$t" 2>&1)"; then
       echo "  ✓ $t — $(echo "$out" | grep -Eo '[0-9]+ passed, [0-9]+ failed' | tail -1)"
     else
       echo "  ✗ $t"
-      echo "$out" | grep -E "FAIL|Error|error" | head -12 | sed 's/^/      /'
+      # Match the failing assertions AND the last line. A test that dies before it can assert anything
+      # — a loader that cannot find what it parses, a syntax error, a missing file — prints a message
+      # matching none of these patterns, so the grep alone showed an empty ✗ block. The tail is the
+      # backstop that guarantees SOMETHING explains the block.
+      echo "$out" | grep -E "FAIL|Error|error|LOAD" | head -12 | sed 's/^/      /'
+      echo "$out" | tail -1 | sed 's/^/      /'
       FAIL=1
     fi
   done
