@@ -311,6 +311,54 @@
 .gx-user-item:hover{background:var(--gx-surface-2);color:var(--gx-text);}
 .gx-user-item.is-danger:hover{color:var(--gx-red);}
 .gx-user-ver{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:800;color:var(--gx-green);}
+/* The version row OPENS the history (gx-changelog.js), so it has to read as a live control rather
+   than the dead label it was in three apps. The underline is the affordance; without it the row
+   looks identical to the static info rows above it. */
+.gx-user-item[data-gx-action="version"] .gx-user-ver{border-bottom:1px dotted var(--gx-green-dim);}
+.gx-user-item[data-gx-action="version"]:hover .gx-user-ver{border-bottom-color:var(--gx-green);}
+
+/* ── Version-history / What's New popup (gx-changelog.js) ─────────────────────────────────────────
+   Promoted out of Leaderboard, which had the only complete implementation. Inventory, Sales and the
+   Command Center each had their own; Price Cards, SPIFF and Crew had none, so their Version row was
+   a dead label. One modal now, styled here, so a fix reaches all seven. */
+.gx-cl-overlay{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;
+  justify-content:center;z-index:1000;padding:20px;}
+.gx-cl-overlay.gx-cl-open{display:flex;}
+.gx-cl-modal{background:var(--gx-surface-2);border:1px solid var(--gx-border);border-radius:var(--gx-radius-xl);
+  width:560px;max-width:100%;max-height:82vh;display:flex;flex-direction:column;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);font-family:var(--gx-font);}
+.gx-cl-header{display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--gx-border);}
+.gx-cl-icon img{width:26px;height:26px;object-fit:contain;display:block;}
+.gx-cl-icon{font-size:26px;line-height:1;flex:none;}
+.gx-cl-title{font-size:17px;font-weight:800;color:var(--gx-text);}
+.gx-cl-sub{font-size:12px;color:var(--gx-text-mute);margin-top:2px;}
+.gx-cl-x{margin-left:auto;background:none;border:none;color:var(--gx-text-mute);font-size:16px;
+  cursor:pointer;padding:4px 8px;border-radius:var(--gx-radius);line-height:1;flex:none;}
+.gx-cl-x:hover{color:var(--gx-text);background:var(--gx-bg);}
+.gx-cl-body{padding:6px 20px;overflow-y:auto;}
+.gx-cl-empty{color:var(--gx-text-mute);padding:22px 2px;font-size:13px;line-height:1.5;text-align:center;}
+.gx-cl-ver{padding:14px 0;border-bottom:1px solid var(--gx-border);}
+.gx-cl-ver:last-child{border-bottom:none;}
+.gx-cl-ver-head{display:flex;align-items:baseline;gap:10px;margin-bottom:8px;}
+.gx-cl-ver-num{font-weight:800;color:var(--gx-green);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:13px;font-variant-numeric:tabular-nums;}
+.gx-cl-ver-date{font-size:11px;color:var(--gx-text-mute);}
+/* No opacity on top of --gx-text-mute: mute is ALREADY the dimmest text token, and .7 on top of it
+   rendered the sha effectively unreadable against --gx-surface-2. Secondary means quieter, not
+   illegible — if it is not worth reading it is not worth showing. */
+.gx-cl-sha{font-size:10px;color:var(--gx-text-mute);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  margin-left:auto;}
+.gx-cl-items{margin:0;padding-left:18px;}
+.gx-cl-items li{font-size:13px;color:var(--gx-text-dim);line-height:1.5;margin-bottom:5px;}
+.gx-cl-nonote{font-size:12px;color:var(--gx-text-mute);font-style:italic;padding-left:2px;}
+.gx-cl-footer{padding:14px 20px;border-top:1px solid var(--gx-border);display:flex;align-items:center;
+  justify-content:flex-end;gap:10px;}
+.gx-cl-toggle{margin-right:auto;background:none;border:1px solid var(--gx-border-strong);color:var(--gx-text-dim);
+  border-radius:var(--gx-radius-md);padding:7px 12px;font:600 12px/1 var(--gx-font);cursor:pointer;}
+.gx-cl-toggle:hover{color:var(--gx-text);border-color:var(--gx-green-dim);}
+.gx-cl-ok{background:var(--gx-green);color:var(--gx-green-ink);border:none;border-radius:var(--gx-radius-md);
+  padding:8px 18px;font:700 13px/1 var(--gx-font);cursor:pointer;}
+.gx-cl-ok:hover{background:var(--gx-green-bright);}
 
 @media (max-width:720px){
   .gx-topnav{flex-wrap:wrap;padding:0 12px;gap:8px;}

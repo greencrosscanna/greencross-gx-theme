@@ -37,7 +37,7 @@ print('  ✓ gx-theme.css — braces balanced (%d rules)' % o)
 PY
 
 # 3. Every shared script must parse. These are loaded by all six apps.
-for f in gx-avatar.js gx-client.js gx-dev.js gx-stores.js gx-topnav.js; do
+for f in gx-avatar.js gx-bugreport.js gx-changelog.js gx-client.js gx-dev.js gx-stores.js gx-topnav.js; do
   [ -f "$f" ] || continue
   if node --check "$f" 2>/dev/null; then echo "  ✓ $f — parses"
   else echo "  ✗ $f — SYNTAX ERROR"; node --check "$f" 2>&1 | head -3 | sed 's/^/      /'; FAIL=1; fi

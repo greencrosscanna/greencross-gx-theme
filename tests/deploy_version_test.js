@@ -91,5 +91,62 @@ console.log('\n5. gx-preflight.sh carries the same pattern, and stays in step');
   ok(pat.test(PRE), 'gx-preflight.sh uses it too — two copies drifting is how the bug survived');
 }
 
+console.log('\n6. the vMAJOR.BBB format gate — the real block from deploy.sh');
+{
+  /* Extraction and FORMAT are two different jobs and the tests above only cover the first. deploy.sh
+     could extract '1.28' perfectly and still file a version that does not sort against 'v1.280'.
+     Same technique as above: run the REAL block, never a reimplementation of it. */
+  const start = DEPLOY.indexOf('_bad_version() {');
+  const end   = DEPLOY.indexOf('\nesac', start);
+  if (start < 0 || end < 0) {
+    ok(false, 'LOAD: could not find the format gate in deploy.sh');
+  } else {
+    const GATE = DEPLOY.slice(start, end + '\nesac'.length);
+    const gate = v => {
+      try {
+        execFileSync('bash', ['-c', 'set -euo pipefail; APP_VERSION="$1"; ' + GATE, '_', v],
+                     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        return { ok: true };
+      } catch (e) { return { ok: false, err: String(e.stderr || '') }; }
+    };
+    // Accepted: exactly one dot, digits both sides, build exactly 3 wide.
+    [['v1.583', 'performance today'], ['v3.020', 'inventory, padded'], ['v2.500', 'sales, padded'],
+     ['v1.420', 'pricecards, given a MAJOR at last'], ['v1.280', 'spiff and crew, padded']
+    ].forEach(([v, why]) => ok(gate(v).ok, `accepts ${v} — ${why}`));
+
+    // Rejected: every shape the suite was actually carrying on 2026-08-23.
+    [['v3.02', 'v3.020'], ['v2.4', 'v2.400'], ['v1.28', 'v1.280'], ['v42', 'v1.420'], ['v27', 'v1.270']
+    ].forEach(([v, want]) => {
+      const r = gate(v);
+      ok(!r.ok && r.err.includes(want), `rejects ${v} AND names the fix (${want})`);
+    });
+    ['2.5', 'v1.0.0', 'v1.abc', '', 'vX', 'x1.000'].forEach(v =>
+      ok(!gate(v).ok, `rejects ${JSON.stringify(v)}`));
+
+    /* The pad direction is the whole ballgame. The build is the FRACTIONAL half of a decimal that has
+       been counting up, so v1.28 is the 280s. Left-padding to v1.028 would send every app backwards
+       past every version it has already shipped — a What's New popup would then re-show years of
+       notes, and every "newer than seen" check would invert. Pin the direction, not just the width. */
+    ok(gate('v1.28').err.includes('v1.280') && !gate('v1.28').err.includes('v1.028'),
+       'pads RIGHT (v1.28 → v1.280), never left (v1.028) — left would move the app backwards');
+  }
+}
+
+console.log('\n7. GX Core enforces the same rule server-side');
+{
+  /* The deploy.sh gate is the one that saves a redeploy; this one is the actual gate, because any
+     curl can skip the script. They must agree, so the rule is asserted in both places. */
+  const core = path.join(ROOT, '..', 'greencross-command-center', 'gx_core.gs');
+  if (!fs.existsSync(core)) {
+    console.log('  SKIP  gx_core.gs not checked out beside gx-theme — server-side rule unverified here');
+  } else {
+    const SRC = fs.readFileSync(core, 'utf8');
+    ok(/GX_VERSION_BUILD_DIGITS\s*=\s*3/.test(SRC), 'gx_core.gs pins the same 3-digit build width');
+    ok(/function gxCheckVersionFormat_/.test(SRC), 'gx_core.gs has the format check');
+    ok(/const fmt = gxCheckVersionFormat_\(a, version\); if \(!fmt\.ok\) return fmt;/.test(SRC),
+       'gxRecordVersion actually CALLS it — an uncalled validator is the failure mode this pins');
+  }
+}
+
 console.log('\n' + (fail ? 'FAILED' : 'ok') + ' — ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

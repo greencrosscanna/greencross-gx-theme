@@ -87,11 +87,24 @@
   <p class="pv-note">Submitting here is a no-op — the preview passes a stub transport, so nothing is filed.</p>
   <div style="margin:0 20px;"><button class="gx-btn-green" id="pvBug" type="button">Open the bug form</button></div>
 
+  <div class="pv-h">Version history — one popup, replacing four (and filling three gaps)</div>
+  <p class="pv-note">Built entirely by <code>gx-changelog.js</code>, reading GX Core's
+     <code>version_history</code> route. Leaderboard, Inventory, Sales and the Command Center each had
+     their own modal; Price Cards, SPIFF and Crew had none, so their Version row was a dead label.
+     Clicking <em>Version</em> in the user chip above opens this — no app wires it, though an app that
+     wants its own popup keeps it by calling <code>preventDefault()</code> on the event.</p>
+  <p class="pv-note">The footer toggles between the consolidated release notes and the full deploy log,
+     and only appears when consolidation actually dropped something. Versions render in the suite
+     format <code>vMAJOR.BBB</code> — the fixed 3-digit build is what makes “is this newer than what
+     I've seen” answer the same way everywhere.</p>
+  <div style="margin:0 20px;"><button class="gx-btn-green" id="pvCl" type="button">Open version history</button></div>
+
 </div>
 <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-client.js"></script>
 <script src="gx-topnav.js"></script>
 <script src="gx-stores.js"></script>
 <script src="gx-bugreport.js"></script>
+<script src="gx-changelog.js"></script>
 <script>
   GXTopNav.init(); GXTopNav.startClock();
   document.addEventListener('gx-topnav:action', function(e){
@@ -107,6 +120,15 @@
     submit:   function(){ return Promise.resolve({ ok: true }); }
   });
   document.getElementById('pvBug').addEventListener('click', function(){ GXBugReport.open(); });
+
+  /* Reads REAL release notes from GX Core (a public, read-only route — nothing is written). No
+     `whatsNew` gate, so the auto-popup never fires here: a component gallery that ambushes you with
+     a modal on load is not showing you the component, it is interrupting you. */
+  GXChangelog.init({
+    app: 'performance', title: 'Green Cross Leaderboard',
+    version: function(){ return 'v1.583'; }
+  });
+  document.getElementById('pvCl').addEventListener('click', function(){ GXChangelog.open(); });
 
   GXStores.load('https://script.google.com/macros/s/AKfycbx9mjeCBbDpxNYaqBv2hyZaO1hpbGG6PZM9AebFdwl0UwkdtRCGSWrH-8ohEtdF1K_6/exec')
     .then(function(rows){

@@ -54,9 +54,22 @@
         menu.hidden = true;
         btn.setAttribute('aria-expanded', 'false');
         var action = item.getAttribute('data-gx-action') || '';
-        document.dispatchEvent(new CustomEvent('gx-topnav:action', {
-          detail: { action: action, item: item, wrap: wrap }
-        }));
+        var ev = new CustomEvent('gx-topnav:action', {
+          detail: { action: action, item: item, wrap: wrap },
+          cancelable: true
+        });
+        var wanted = document.dispatchEvent(ev);
+        /* The Version row OPENS the version history, everywhere, without each app wiring it.
+           It was a dead label in Price Cards, SPIFF and Crew, and three separate popups in
+           Inventory, Sales and Leaderboard — see gx-changelog.js for the measurement.
+
+           The app still gets first refusal: the event goes out FIRST, and an app that handles
+           'version' itself calls preventDefault() to keep its own popup. So this is a default,
+           not an override, and no app breaks the moment this file reaches it. */
+        if (action === 'version' && wanted &&
+            global.GXChangelog && global.GXChangelog.configured && global.GXChangelog.configured()) {
+          global.GXChangelog.open();
+        }
       });
     });
 
