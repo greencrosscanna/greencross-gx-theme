@@ -71,9 +71,18 @@ fetch gxengine.sh        gxengine.sh               || true
 # VERIFY, do not assume. On 2026-08-22 gx-preflight.sh, deploy.sh and serve.py came out of a sync at
 # 0600 across four repos. It has not reproduced since and the cause is unconfirmed (self-update path?
 # Dropbox reverting modes asynchronously?) -- so this does not claim to prevent it, it refuses to let it
-# pass silently. The stakes are why: .git/hooks/pre-push is `exec ./gx-preflight.sh`, so a
-# non-executable preflight does not weaken the guard, it stops it running and every push fails with
-# "Permission denied". deploy.sh losing +x fails later and much quieter.
+# pass silently.
+#
+# WHAT IT ACTUALLY COSTS, corrected 2026-08-22. The hook is `exec sh ./gx-preflight.sh` -- `sh` READS
+# the script, so a 0600 preflight still runs and the guard is never weakened. The earlier claim here
+# ("every push fails with Permission denied") described the older `exec ./gx-preflight.sh` form and was
+# left behind when that changed; it overstated the danger, which is its own hazard -- it invites you to
+# believe a failing push would announce the problem. Nothing announces it.
+#
+# So the real cost is quiet: `./deploy.sh` refuses by hand, and whoever hits it works around it with
+# `bash deploy.sh` and moves on (sales did, 2026-08-22). Every guard that matters is invoked through
+# `sh` for exactly this reason -- gx-preflight, theme-preflight and run-tests alike. Keep it that way:
+# a hook that depends on a mode bit is a hook this filesystem can switch off without telling you.
 _notexec=""
 for f in .claude/gx-brain-notes.sh deploy.sh serve.py gx-preflight.sh gxengine.sh; do
   [ -f "$f" ] || continue
