@@ -30,10 +30,22 @@ const DEPLOY = fs.readFileSync(path.join(ROOT, 'deploy.sh'), 'utf8');
 let pass = 0, fail = 0;
 const ok = (c, l) => { if (c) { pass++; console.log('  PASS  ' + l); } else { fail++; console.log('  FAIL  ' + l); } };
 
-/* Pull the live pipeline out of deploy.sh, so this tests what ships. */
-const line = DEPLOY.split('\n').find(l => l.trim().startsWith('_ver=') && l.includes('js\\?v='));
+/* Pull the live pipeline out of deploy.sh, so this tests what ships.
+ *
+ * deploy.sh used to grep index.html directly, so this loader used to find a `_ver=...index.html...`
+ * line and swap the filename for "$1". It no longer reads a file at all: extraction moved into
+ * _extract_version(), which takes the document as a STRING ($_src), because deploy.sh now reads
+ * `git show HEAD:index.html` rather than the working tree (a mid-edit tree published a release that
+ * was never shipped on 2026-08-23). So the loader feeds $_src from the temp file instead.
+ *
+ * Kept as an extraction-from-source loader rather than a copy of the pipeline: a test that
+ * reimplements the thing under test cannot catch the thing under test changing — which is exactly
+ * what this file exists to prevent. The LOAD FAILED exit is deliberate and load-bearing; it is what
+ * caught this refactor. */
+const line = DEPLOY.split('\n').find(l => l.trim().startsWith('_v="$(printf') && l.includes('js\\?v='));
 if (!line) { console.error('LOAD FAILED: could not find the ?v= extraction line in deploy.sh'); process.exit(2); }
-const PIPELINE = line.trim().replace(/^_ver="\$\(/, '').replace(/\)"$/, '').replace(/index\.html/g, '"$1"');
+const PIPELINE = '_src="$(cat "$1")"; ' +
+  line.trim().replace(/^_v="\$\(/, '').replace(/\)"$/, '');
 
 function extract(pipeline, tag) {
   const tmp = path.join(require('os').tmpdir(), 'gxdeployver.html');
@@ -146,6 +158,31 @@ console.log('\n7. GX Core enforces the same rule server-side');
     ok(/const fmt = gxCheckVersionFormat_\(a, version\); if \(!fmt\.ok\) return fmt;/.test(SRC),
        'gxRecordVersion actually CALLS it — an uncalled validator is the failure mode this pins');
   }
+}
+
+console.log('\n8. deploy.sh reads HEAD, not the working tree');
+{
+  /* The 2026-08-23 phantom row: deploy.sh grepped index.html AS IT SAT ON DISK while a second session
+     was mid-edit with the version bumped ahead, and published a release that never shipped — pairing
+     it with a sha from `git rev-parse HEAD`, i.e. the COMMITTED code. Version and sha never coexisted.
+     Two repos here are Dropbox-synced and routinely have more than one session open, so "the working
+     tree is what shipped" is not safe anywhere in this suite. These pin the fix, not just the intent. */
+  ok(/git show HEAD:index\.html/.test(DEPLOY), 'reads HEAD:index.html, so version and sha agree by construction');
+  ok(/GX_VERSION/.test(DEPLOY), 'accepts an explicit GX_VERSION override');
+  ok(/GX_ALLOW_DIRTY/.test(DEPLOY), 'has a named escape hatch for a HEAD/tree disagreement');
+  ok(/does not agree with HEAD about the version/.test(DEPLOY),
+     'and STOPS on that disagreement rather than warning — it is the exact phantom-row condition');
+
+  /* The override must not become a way round the FORMAT rule, only round the guess. */
+  const start = DEPLOY.indexOf('_bad_version() {');
+  const end   = DEPLOY.indexOf('\nesac', start);
+  const GATE  = DEPLOY.slice(start, end + '\nesac'.length);
+  let rejected = false;
+  try {
+    execFileSync('bash', ['-c', 'set -euo pipefail; APP_VERSION="v9.99"; ' + GATE, '_'],
+                 { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) { rejected = /v9\.990/.test(String(e.stderr || '')); }
+  ok(rejected, 'a GX_VERSION override still goes through the vMAJOR.BBB gate');
 }
 
 console.log('\n' + (fail ? 'FAILED' : 'ok') + ' — ' + pass + ' passed, ' + fail + ' failed');
