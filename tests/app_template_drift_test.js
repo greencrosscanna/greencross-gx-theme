@@ -34,6 +34,7 @@ console.log('\n1. the template loads the whole shared layer');
   ['gx-topnav.js',  /gx-theme\/gx-topnav\.js/],
   ['gx-stores.js',  /gx-theme\/gx-stores\.js/],
   ['gx-avatar.js',  /gx-theme\/gx-avatar\.js/],
+  ['gx-bugreport.js', /gx-theme\/gx-bugreport\.js/],
   ['gc-icon.png (favicon)',      /rel="icon"[^>]*gx-theme\/gc-icon\.png/],
   ['gc-touch-icon.png (iOS)',    /rel="apple-touch-icon"[^>]*gx-theme\/gc-touch-icon\.png/],
   ['gx-logo.png (nav brand)',    /gx-theme\/gx-logo\.png/],
@@ -59,9 +60,12 @@ console.log('\n3. the dev-guard injector matches gx-dev-boot.html, its canonical
 }
 
 console.log('\n4. placeholders are present and consistent');
-['__APP_TITLE__', '__APP_JS__', '__GX_READS__'].forEach(p =>
+['__APP_TITLE__', '__APP_JS__', '__GX_READS__', '__APP_KEY__'].forEach(p =>
   ok(TPL.includes(p), 'placeholder ' + p + ' present'));
 ok(/src="__APP_JS__\?v=1"/.test(TPL), 'app script carries the ?v= cache-buster deploy.sh reads');
+/* Every new app gets a bug reporter. SPIFF and Crew both shipped without one, and an app with no
+   reporter produces no reports — which reads as "no problems", not "no reporter". */
+ok(/GXBugReport\.init\(/.test(TPL), 'the template WIRES the reporter, not just loads the script');
 
 console.log('\n5. gxappstart.md fetches the template instead of inlining a scaffold');
 {

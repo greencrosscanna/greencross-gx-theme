@@ -15,6 +15,7 @@
        __APP_TITLE__   browser title + the nav sub-label, e.g. "Crew"
        __APP_JS__      the app's own JS filename, e.g. "crew.js"
        __GX_READS__    every GX Core action this app READS (dev guard allowlist)
+       __APP_KEY__     the GX Core app key, e.g. "crew" (the same value as .gx_app)
 ─────────────────────────────────────────────────────────────────────────────────────────────────── -->
 <!doctype html>
 <html lang="en">
@@ -75,6 +76,12 @@
   <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-topnav.js"></script>
   <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-stores.js"></script>
   <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-avatar.js"></script>
+  <!-- Bug reporting. NOT optional: an app with no way to report a bug produces no bug reports, which
+       reads as "no problems" rather than "no reporter". SPIFF and Crew both shipped without one and
+       nobody noticed until the form was consolidated here. It builds its own button and modal — no
+       markup goes in this file — and every report automatically carries the reporter's state (route,
+       viewport, browser, last console error). Wire it at the bottom of <body>. -->
+  <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-bugreport.js"></script>
   <!-- gx-session.js: add it if this app manages its own sign-in session (inventory, pricecards, spiff
        load it; leaderboard and sales do not). Not every app needs it — don't cargo-cult it in. -->
 
@@ -118,6 +125,20 @@
   </header>
 
   <main id="app" class="gx-main"><!-- rendered by __APP_JS__ --></main>
+
+  <!-- Bug reporter. `submit` is THIS app's own authenticated call: gx-bugreport deliberately does not
+       own a second auth path, because the app already has one that works. Filing a bug is a WRITE, so
+       it stays off the __GX_READS__ dev-guard allowlist on purpose. -->
+  <script>
+    GXBugReport.init({
+      app:      '__APP_KEY__',
+      action:   'bugreport',            // must match the action name THIS app's proxy expects
+      submit:   function (payload) { return /* this app's proxy call */ Promise.reject(new Error('wire me')); },
+      reporter: function () { return /* signed-in user id */ ''; },
+      version:  function () { return /* APP_VERSION */ ''; },
+      context:  function () { return { /* tab: state.tab, store: state.store */ }; },
+    });
+  </script>
 
   <!-- ?v=N is the single source of truth deploy.sh reads for the version. Bump on each ship. -->
   <script src="__APP_JS__?v=1"></script>
