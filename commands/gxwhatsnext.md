@@ -14,8 +14,9 @@ sequence, kept fresh in the CC.
 
 ## Do this
 1. **Identify THIS app's key** from its `CLAUDE.md` (the app key it uses with the brain): one of
-   `inventory`, `sales`, `performance`, `pricecards`, `core-admin` (plus future: `spiff`, `incentive`,
-   `review`, `heatmap`). If you can't tell, ask which app this is before continuing.
+   `inventory`, `sales`, `performance`, `pricecards`, `spiff`, `crew`, `core-admin`. That is the
+   complete list — each spoke also states its own key in `.gx_app`, which is the tiebreaker. If you
+   can't tell, ask which app this is before continuing.
 2. **Housekeeping FIRST — reset the board.** The goal: go into "what's next" with everything we've worked on
    purged and the Command Center fresh. Close out what's genuinely done; surface (don't force-close) the rest.
    **Track the counts as you go** — you'll report a summary at the end.

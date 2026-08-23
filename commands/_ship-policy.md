@@ -11,6 +11,9 @@ feature bake):** match the flow to the change.
     exposing staff via a **`cfg.<feature>` flag** (ship dark, flip on from the cockpit) or a local
     preview; the versioned proxy stages backend without repointing the live one. On merge → **`dev_ship`**.
   - Test: *"Would staff notice it mid-bake / does it change their workflow?"* → branch. Trivial/invisible → direct.
+- **Pre-launch apps** (`spiff`, `crew`) work **direct on `main`** for everything, feature or fix —
+  they have no real users yet, so there is nobody to protect from a half-built screen and a PR buys
+  nothing. Move them onto the rule above the day they reach staff.
 - **GX Core / the shared `GXCore` library** (`core-admin`) **keep PR + versioned discipline** — library
   versions are immutable and pinned by every spoke, so a bad one silently breaks all apps. (`core-admin`
   itself deploys directly with Sky watching, but treats library-version cuts as gated.)

@@ -97,8 +97,16 @@ list — no code change needed. Roles are enforced at the app login, not the dat
   decoupled. Other apps get their own sheets the same way.
 - **GX Core** (shared sheet) is the single source of truth for cross-app data: users/roles &
   access grants, stores, employees, product/SKU dictionary, price-tag config. One writer, many readers.
-- Cross-app hand-offs go through a written contract in GX Core (e.g., SPIFF writes `spiff_payouts`;
-  Performance reads it). Don't change a shared table's columns without updating both sides.
+- Cross-app hand-offs go through a written contract in GX Core: Leaderboard publishes its finished
+  goal payload to `goal_publications`, and Sales/Cashflow reads it. Don't change a shared table's
+  columns — or a published payload's shape — without updating both sides in the same change. That one
+  is covered by a test that runs the real consumer against the real producer's shape
+  (`tests/cross_app_goals_contract_test.js` in the hub, wrapped into both spokes' push gates).
+  *Corrected 2026-08-22: this bullet used to cite "SPIFF writes `spiff_payouts`; Performance reads it."*
+  ***No such tab exists*** *— it is not in `GX_TABS`, nothing writes it, and nothing reads it. SPIFF
+  keeps payout data in its own sheet and its only GX Core calls are reads. A documented contract that
+  does not exist is worse than an undocumented one: it invites a session to "maintain" it, or to assume
+  pay data already flows and build on top of it.*
 
 ## Hard rules (learned the hard way — do not relearn them)
 - **Dates in sheets are stored as TEXT**, never Date objects (a sheet/script timezone mismatch
