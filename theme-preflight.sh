@@ -145,6 +145,19 @@ PY
   fi
 fi
 
+# ── vendored libraries ───────────────────────────────────────────────────────────────────────────
+# These are upstream bytes and must stay upstream bytes. An edit here would ship to every app that
+# loads them, from a directory nobody thinks to review.
+if [ -f vendor/verify.sh ]; then
+  if sh vendor/verify.sh >/dev/null 2>&1; then
+    echo "  ✓ vendor/ — $(grep -c '^[0-9a-f]' vendor/SHA256SUMS) libraries match their checksums"
+  else
+    echo "  ✗ vendor/ — a vendored file has been MODIFIED. These are upstream bytes; never edit them."
+    sh vendor/verify.sh 2>&1 | grep '✗' | sed 's/^/    /'
+    FAIL=1
+  fi
+fi
+
 # ── tests ────────────────────────────────────────────────────────────────────────────────────────
 # The parse checks above prove these files are syntactically valid JS. They cannot prove the shared
 # layer still BEHAVES — and this repo is loaded live from Pages by five apps, so a behavioural
