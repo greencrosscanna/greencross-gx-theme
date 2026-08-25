@@ -31,9 +31,17 @@ sequence, kept fresh in the CC.
      curl -sL --http1.1 -G "<GXCORE>" --data-urlencode action=dev_queue \
        --data-urlencode "secret=$(cat .gx_deploy_secret)"
      ```
-   - **Pending notes** + **open bugs** — list them. Anything **verifiably handled** →
-     `resolve_note&id=…` / `bug_update&id=…&status=resolved`. Anything still needing action → surface it
-     for Sky (don't auto-close on a guess). *(Count closed / left.)*
+   - **Pending notes** + **open bugs** — list them, and give each one of THREE dispositions. The third
+     is the one that keeps the board honest:
+       1. **verifiably handled** → `resolve_note&id=…` / `bug_update&id=…&status=resolved`
+       2. **still actionable by an agent** → leave pending and surface it (don't auto-close on a guess)
+       3. **real, read, and only a HUMAN can advance it** → `block_note&id=…&blocked_on=<who/what it
+          waits on>`. Not a resolve (nothing was done) and not a silent leave (it is real). The note
+          stays in the inbox but renders as "⏸ BLOCKED on a human" instead of as fresh work, so it stops
+          re-surfacing verbatim every session. `blocked_on` is REQUIRED — parking with no reason is a
+          silent drop with extra steps. `unblock_note&id=…` puts it back to pending when Sky answers.
+     Use `status=open` to list pending AND blocked in one call; `status=pending` for fresh only.
+     *(Count closed / blocked / left.)*
      ```
      curl -sL --http1.1 -G "<GXCORE>" --data-urlencode action=notes --data-urlencode app=<APP> \
        --data-urlencode status=pending --data-urlencode "secret=$(cat .gx_deploy_secret)"
@@ -55,7 +63,9 @@ sequence, kept fresh in the CC.
      done work is scannable at a glance instead of hiding inside a count. Purged resolved notes stay a
      count only; they were already closed. Then list **anything still pending that needs Sky, NUMBERED
      starting at [1]** (each surviving pending note / open bug on its own numbered line, **no ✅** — the
-     checkmark means done, never "seen"). This is the proof the board is fresh, and it seeds the running
+     checkmark means done, never "seen"). Mark anything you parked with `block_note` as **⏸ blocked on
+     Sky** and say what it waits on, so "I need a decision from you" is visibly different from "this is
+     unstarted work". This is the proof the board is fresh, and it seeds the running
      item numbers for step 4.
 
      ```
