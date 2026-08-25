@@ -90,7 +90,7 @@ console.log('\n4. spiff_payouts is never claimed as real, anywhere');
      retraction because "no such tab\nexists" was line-wrapped in a comment block — a brittle assertion
      that reports a real correction as missing is worse than no assertion, because the fix looks like
      re-writing a correction that was already there. */
-  const RETRACTED = /(no such tab exists|does not exist|is not in `?GX_TABS|nothing writes it|corrected 2026-08-22)/i;
+  const RETRACTED = /(no such tab exists|does not exist|is not in `?GX_TABS|nothing writes it|do not reach|corrected 2026-08-2[25])/i;
   const flat = t => t.replace(/\s+/g, ' ');
   const check = (label, text) => {
     const t = flat(text);
@@ -99,10 +99,30 @@ console.log('\n4. spiff_payouts is never claimed as real, anywhere');
   };
   ALL.forEach(x => check('commands/' + x.f, x.s));
 
-  // The retraction is only trustworthy if every place it landed still agrees.
+  /* The retraction is only trustworthy if every place it landed still agrees — and this list was TWO
+     entries long while the claim survived, unqualified, in eight other files. The test passed the whole
+     time. That is the worse failure: a guard that reports clean because it is looking somewhere else
+     teaches you the problem is solved.
+     Found 2026-08-25 by the spiff spoke, which noticed its own CLAUDE.md still asserted the contract as
+     real and that this test did not read that file. The list now covers every file in the tree that has
+     ever mentioned the tab: both CLAUDE.md layers, all three spoke agent definitions (the highest-
+     leverage copy of all — an agent definition is loaded fresh into every session for that repo,
+     so a false claim there outlives every doc fix), and the two hub design docs where the fake contract
+     was cited as PRECEDENT for a real decision.
+     Anything added here must either not mention the tab or mention it beside a retraction. */
+  const R = (...p) => path.join(ROOT, '..', ...p);
   const also = [
-    ['hub CLAUDE.md', path.join(ROOT, '..', 'greencross-command-center', 'CLAUDE.md')],
-    ['spiff Code.gs', path.join(ROOT, '..', 'greencross-spiff', 'apps-script', 'Code.gs')],
+    ['hub CLAUDE.md',          R('greencross-command-center', 'CLAUDE.md')],
+    ['tree CLAUDE.md',         R('CLAUDE.md')],
+    ['spiff Code.gs',          R('greencross-spiff', 'apps-script', 'Code.gs')],
+    ['spiff CLAUDE.md',        R('greencross-spiff', 'CLAUDE.md')],
+    ['leaderboard CLAUDE.md',  R('greencross-leaderboard', 'CLAUDE.md')],
+    ['crew CLAUDE.md',         R('greencross-crew', 'CLAUDE.md')],
+    ['gx-conventions.md',      R('greencross-command-center', 'gx-conventions.md')],
+    ['GX_SALES_GOALS_COUPLING.md', R('greencross-command-center', 'GX_SALES_GOALS_COUPLING.md')],
+    ['agent: spiff-spoke',       R('.claude', 'agents', 'spiff-spoke.md')],
+    ['agent: leaderboard-spoke', R('.claude', 'agents', 'leaderboard-spoke.md')],
+    ['agent: crew-spoke',        R('.claude', 'agents', 'crew-spoke.md')],
   ].filter(([, p]) => fs.existsSync(p));
   if (!also.length) skipf('hub/spiff not checked out — cannot confirm the retraction landed there too');
   else also.forEach(([label, p]) => check(label, fs.readFileSync(p, 'utf8')));
