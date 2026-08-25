@@ -20,14 +20,33 @@ sequence, kept fresh in the CC.
 2. **Housekeeping FIRST — reset the board.** The goal: go into "what's next" with everything we've worked on
    purged and the Command Center fresh. Close out what's genuinely done; surface (don't force-close) the rest.
    **Track the counts as you go** — you'll report a summary at the end.
+   **Every housekeeping call below is secret-gated** — `dev_queue`, `dev_delete`, `dev_ship`, `notes`,
+   `resolve_note`, `bugs`, `bug_update`, `purge_notes`. Send
+   `--data-urlencode "secret=$(cat .gx_deploy_secret)"` on all of them. Omit it and you get
+   `{"ok":false,"error":"bad deploy secret"}`, which reads like a WRONG secret rather than a missing one.
    - **Lingering done jobs** (`action=dev_queue`, filter to this app): a `done` job still in the queue →
      `dev_delete&id=…` to clear it; an `in_review` job whose PR is merged → `dev_ship&id=…`. Never leave
      finished work sitting `working`. *(Count cleared/shipped.)*
-   - **Pending notes** (`action=notes&app=<APP>&status=pending`) + **open bugs** (`action=bugs&app=<APP>`):
-     list them. Anything **verifiably handled** → `resolve_note&id=…` / `bug_update&id=…&status=resolved`.
-     Anything still needing action → surface it for Sky (don't auto-close on a guess). *(Count closed / left.)*
+     ```
+     curl -sL --http1.1 -G "<GXCORE>" --data-urlencode action=dev_queue \
+       --data-urlencode "secret=$(cat .gx_deploy_secret)"
+     ```
+   - **Pending notes** + **open bugs** — list them. Anything **verifiably handled** →
+     `resolve_note&id=…` / `bug_update&id=…&status=resolved`. Anything still needing action → surface it
+     for Sky (don't auto-close on a guess). *(Count closed / left.)*
+     ```
+     curl -sL --http1.1 -G "<GXCORE>" --data-urlencode action=notes --data-urlencode app=<APP> \
+       --data-urlencode status=pending --data-urlencode "secret=$(cat .gx_deploy_secret)"
+     curl -sL --http1.1 -G "<GXCORE>" --data-urlencode action=bugs --data-urlencode app=<APP> \
+       --data-urlencode "secret=$(cat .gx_deploy_secret)"
+     ```
    - **Purge resolved clutter** (`action=purge_notes`) — safe: only deletes already-resolved notes, pending
-     untouched. *(Count purged.)*
+     untouched. Resolved notes sit in a 7-day grace window first, so `deleted:0` with a large
+     `kept_in_grace` is a healthy answer, not a failure. *(Count purged.)*
+     ```
+     curl -sL --http1.1 -G "<GXCORE>" --data-urlencode action=purge_notes \
+       --data-urlencode "secret=$(cat .gx_deploy_secret)"
+     ```
    - **Do NOT regenerate the digest.** Never call `action=ai_strategy` here — it's slow (~60s+) and expensive,
      and Sky regenerates it himself in the Command Center cockpit. Just read whatever digest is current.
    - **Report a housekeeping summary** before moving on — a compact "🧹 Cleaned up" block:
