@@ -22,15 +22,43 @@
 <head>
   <meta charset="utf-8">
   <!-- Icons: shared from gx-theme, absolute, so every app is identical and nothing is copied per
-       repo. Two DIFFERENT images on purpose:
-         favicon          dark mark, sized for a browser tab strip
-         apple-touch-icon green mark at 180x180, the size iOS actually uses for an iPhone home
-                          screen. iOS strips transparency and composites on the wallpaper, so the
-                          vibrant square reads there where a dark one would disappear.
+       repo. Artwork is the GC-3D-Icon pack (2026-08-26); the SPLIT below is older than the artwork
+       and survived the swap deliberately, because the two surfaces have opposite requirements.
+
+         favicon           GREEN mark on TRANSPARENT. A tab strip is light or dark depending on the
+                           browser and the OS theme, and an icon with its own background tile only
+                           ever matches one of them — the previous dark tile vanished into dark
+                           chrome. Alpha lets the mark sit on whatever the strip actually is.
+
+         apple-touch-icon  WHITE mark on the brand green #8DBA0E, 180x180, FULLY OPAQUE. Three
+                           separate reasons it is not simply the favicon at another size:
+                           1. iOS DISCARDS the alpha channel and composites what is left on BLACK.
+                              The pack ships every variant transparent (74% of the 180 is alpha), so
+                              handing iOS the pack file directly puts a green cross on a black
+                              square on the home screen. It must arrive pre-flattened.
+                           2. A near-black icon reads as a hole among colourful ones. This is the
+                              older decision the previous comment recorded, and it still holds.
+                           3. Green-on-green is invisible, which is why this is the pack's WHITE
+                              variant rather than its Green one.
+                           If you regenerate these, flatten first and check the result on an actual
+                           home screen — the failure is invisible in every browser.
+
+         152 / 167         iPad and iPad Pro. The pack has no such exports; they were resampled from
+                           master-1024 and flattened the same way. Optional — iOS will downscale the
+                           180 if they are absent — so an app that omits them still looks right.
+
        The old per-app touch icons were 1254x1254 / ~2.8MB — roughly 7x more resolution than iOS
        ever uses, downloaded on every page load. -->
   <link rel="icon" type="image/png" href="https://greencrosscanna.github.io/greencross-gx-theme/gc-icon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="https://greencrosscanna.github.io/greencross-gx-theme/gc-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="https://greencrosscanna.github.io/greencross-gx-theme/gc-touch-icon-167.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="https://greencrosscanna.github.io/greencross-gx-theme/gc-touch-icon-152.png">
+  <!-- Home-screen install: without these iOS opens the app in Safari chrome instead of standalone.
+       Only Sales carried them before 2026-08-26; new apps get them from here. -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Green Cross">
+  <meta name="theme-color" content="#0a0e0d">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>__APP_TITLE__</title>
 

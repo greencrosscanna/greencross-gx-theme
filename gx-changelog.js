@@ -166,7 +166,9 @@
       : '';
     overlay.innerHTML = '<div class="gx-cl-modal" role="dialog" aria-modal="true" aria-label="Version history">'
       + '<div class="gx-cl-header">'
-      +   '<div class="gx-cl-icon"><img src="https://greencrosscanna.github.io/greencross-gx-theme/gc-icon.png" alt=""'
+      // gc-icon-96, not gc-icon: this renders in a 26px slot (.gx-cl-icon img), so the 256px favicon
+      // was ~5x the pixels for no visible gain on any display. Same artwork, 12KB instead of 54KB.
+      +   '<div class="gx-cl-icon"><img src="https://greencrosscanna.github.io/greencross-gx-theme/gc-icon-96.png" alt=""'
       +     ' onerror="this.replaceWith(this.ownerDocument.createTextNode(String.fromCodePoint(127807)))"></div>'
       +   '<div><div class="gx-cl-title">' + (isWhatsNew ? 'What’s New' : (mode === 'history' ? 'Deploy log' : 'Version history')) + '</div>'
       +     '<div class="gx-cl-sub">' + esc(cfg.title || cfg.app) + (running ? ' · ' + esc(running) : '') + '</div></div>'
