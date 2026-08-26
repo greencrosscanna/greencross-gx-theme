@@ -91,5 +91,51 @@
   /* hatSvg is exported for the PICKER, which lays the overlay over a live preview image rather
      than building a chip. Without it the picker needs its own copy of this markup, which is the
      duplication this file exists to end — the hat already lived in three places once. */
-  global.GXAvatar = { url: url, chip: chip, initials: initials, hatSvg: GC_HAT_SVG };
+  /* ─── loadPicker — fetch the BUILDER on demand ─────────────────────────────────────────────────
+   * The picker's js+css were loaded eagerly by every page that might ever open one. That is two
+   * render/parser-blocking cross-origin requests (~29KB, ~185ms warm, ~1.2s on a cold CDN edge) on
+   * every single load — including the kiosk, which runs all day and never opens a picker at all.
+   * Making the files opt-in PER APP was only half the job; they were still eager PER PAGE.
+   *
+   * This lives in gx-avatar.js on purpose: both apps already load THIS file eagerly, because the small
+   * avatar chip renders on every screen. So the loader costs no new request while removing two. A
+   * separate loader file would have re-added one of the requests it exists to remove.
+   *
+   * Idempotent and concurrency-safe: every caller shares one promise, so double-clicking the avatar
+   * circle does not start two downloads or inject two <script> tags.
+   *
+   *   GXAvatar.loadPicker().then(function () { GXAvatarPicker.mount(el, opts); });
+   */
+  var BASE = 'https://greencrosscanna.github.io/greencross-gx-theme/';
+  var pickerPromise = null;
+  function loadPicker() {
+    if (global.GXAvatarPicker) return Promise.resolve(global.GXAvatarPicker);
+    if (pickerPromise) return pickerPromise;
+    pickerPromise = new Promise(function (resolve, reject) {
+      var doc = global.document;
+      if (!doc) return reject(new Error('no document'));
+      if (!doc.querySelector('link[data-gxava-css]')) {
+        var link = doc.createElement('link');
+        link.rel = 'stylesheet'; link.href = BASE + 'gx-avatar-picker.css';
+        link.setAttribute('data-gxava-css', '1');
+        doc.head.appendChild(link);
+      }
+      var el = doc.createElement('script');
+      el.src = BASE + 'gx-avatar-picker.js';
+      el.onload = function () {
+        global.GXAvatarPicker ? resolve(global.GXAvatarPicker)
+                              : reject(new Error('gx-avatar-picker.js loaded but defined nothing'));
+      };
+      /* A failed load must REJECT, not hang. The caller is mid-interaction — somebody tapped an avatar
+         and is waiting — so a promise that never settles is a dead button with no explanation. */
+      el.onerror = function () {
+        pickerPromise = null;   // let a retry actually retry
+        reject(new Error('could not load the avatar builder (gx-theme)'));
+      };
+      doc.head.appendChild(el);
+    });
+    return pickerPromise;
+  }
+
+  global.GXAvatar = { url: url, chip: chip, initials: initials, hatSvg: GC_HAT_SVG, loadPicker: loadPicker };
 })(typeof window !== 'undefined' ? window : this);
