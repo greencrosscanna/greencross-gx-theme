@@ -30,18 +30,28 @@
                            ever matches one of them — the previous dark tile vanished into dark
                            chrome. Alpha lets the mark sit on whatever the strip actually is.
 
-         apple-touch-icon  WHITE mark on the brand green #8DBA0E, 180x180, FULLY OPAQUE. Three
-                           separate reasons it is not simply the favicon at another size:
-                           1. iOS DISCARDS the alpha channel and composites what is left on BLACK.
-                              The pack ships every variant transparent (74% of the 180 is alpha), so
-                              handing iOS the pack file directly puts a green cross on a black
-                              square on the home screen. It must arrive pre-flattened.
-                           2. A near-black icon reads as a hole among colourful ones. This is the
-                              older decision the previous comment recorded, and it still holds.
-                           3. Green-on-green is invisible, which is why this is the pack's WHITE
-                              variant rather than its Green one.
-                           If you regenerate these, flatten first and check the result on an actual
-                           home screen — the failure is invisible in every browser.
+         apple-touch-icon  the GC-3D-BUTTON pack (Dark), 180x180, FULLY OPAQUE. Note BUTTON, a
+                           different pack from the Icon one the favicon uses: the button artwork is
+                           already a rounded 3D tile, which is what a home-screen icon actually is.
+                           Sky's call, 2026-08-26 — "when I save to homescreen I want the button".
+                           Dark for every app, deliberately: per-app variants were considered and
+                           dropped as not worth the complexity.
+
+                           SHIPPED AS DESIGNED, alpha and all — ~52% of the file is transparent.
+                           That is deliberate and it is not a bug to be fixed. iOS does discard the
+                           alpha and composite on BLACK, and the art is inset ~14% with a drop
+                           shadow, so that inset does become a black frame — but the Dark button's
+                           body is near-black (edge luma 36), so the frame disappears into the tile
+                           and the squircle trims the rest. Rendered both ways before choosing:
+                           the difference is that cropping makes the mark slightly larger, not that
+                           one is broken. Sky's call was to keep the artwork as drawn.
+
+                           THE CONSTRAINT THIS PUTS ON ANY REPLACEMENT: an inset with alpha is only
+                           safe while the button body is DARK. The same pack's GREEN variant is a
+                           light tile (luma 131) and WOULD show the black frame; the GC-3D-Icon
+                           pack's bare cross (164) has no tile at all. Either would look perfect in
+                           every browser and wrong on a phone, so tests/icon_assets_test.js measures
+                           it rather than trusting this paragraph. Swap in a light tile and it fails.
 
          152 / 167         iPad and iPad Pro. The pack has no such exports; they were resampled from
                            master-1024 and flattened the same way. Optional — iOS will downscale the

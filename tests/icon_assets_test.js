@@ -3,17 +3,22 @@
  *   RUN:  node tests/icon_assets_test.js   (also run by theme-preflight.sh)
  *
  * WHY THIS EXISTS, and why it is worth a whole suite for five PNGs.
- * iOS DISCARDS the alpha channel on an apple-touch-icon and composites what is left on BLACK. The
- * GC-3D-Icon packs ship every variant on a transparent background — 74% of the 180x180 is alpha —
- * so dropping a pack file straight in as the touch icon puts a green cross on a black square on
- * every iPhone and iPad home screen in the company.
+ * iOS DISCARDS the alpha channel on an apple-touch-icon, composites what is left on BLACK, then
+ * applies its own squircle mask. That failure is invisible everywhere a developer looks: Chrome,
+ * Safari, the local preview and every screenshot honour alpha correctly, and the icon is only wrong
+ * once someone adds the app to a home screen — which nobody does while shipping.
  *
- * The reason to TEST it rather than trust the comment: that failure is invisible everywhere a
- * developer would look. Chrome, Safari, the local preview and every screenshot render alpha
- * correctly; the icon is only wrong once someone adds the app to a home screen, which nobody does
- * while shipping. It is also a silent REGRESSION risk forever after — these five files sit next to
- * eleven pack exports with almost identical names, and a future "just use the pack's version"
- * looks obviously right in review.
+ * BUT ALPHA IS NOT ITSELF THE BUG, and an earlier version of this file said it was. The touch icons
+ * ARE the GC-3D-Button pack shipped as designed, alpha and all (~52% of each is transparent), and
+ * they render correctly: the button body is near-black, so the black iOS composites behind it
+ * disappears into the tile and the squircle trims the rest. Banning alpha here would have rejected
+ * the artwork for a problem it does not have.
+ *
+ * WHAT ACTUALLY BREAKS is a transparent inset around a LIGHT button — the Green, White and Glass
+ * variants of the same pack put a bright tile inside a black frame — or the GC-3D-ICON pack, whose
+ * 74%-alpha bare cross has no tile at all. Both look perfect in a browser. So section 1 asserts the
+ * real property rather than a proxy for it: composite on black the way iOS does, and require the
+ * edge to blend with the interior. Dark-on-dark passes; bright-in-a-black-frame fails.
  *
  * The favicons are asserted the other way round on purpose. A browser tab strip is light or dark
  * depending on browser and OS theme, so a favicon with a baked-in background tile matches exactly
@@ -32,56 +37,103 @@ const ok = (c, l) => { if (c) { pass++; console.log('  PASS  ' + l); } else { fa
 /* Enough PNG to answer "how big is it and does any pixel have alpha". Only the IHDR is needed for
    the size; for alpha, colour type 6/4 means an alpha channel EXISTS, and we inflate to see whether
    it is actually used — a fully-opaque RGBA file is fine, an RGB one trivially is. */
-function readPng(file) {
+/* Enough PNG to answer "how big is it, does any pixel have alpha, and what are the pixels".
+   8-bit, non-interlaced, colour types 0/2/3/4/6 — which is everything in this repo. */
+function readPng(file, wantPixels) {
   const d = fs.readFileSync(file);
   if (d.slice(0, 8).toString('binary') !== '\x89PNG\r\n\x1a\n') throw new Error(file + ': not a PNG');
   const w = d.readUInt32BE(16), h = d.readUInt32BE(20);
   const depth = d[24], ctype = d[25], interlace = d[28];
-  let idat = [];
+  if (depth !== 8 || interlace !== 0) throw new Error(file + ': need 8-bit non-interlaced');
+  let idat = [], plte = null, trns = null;
   for (let i = 8; i < d.length;) {
     const len = d.readUInt32BE(i), typ = d.slice(i + 4, i + 8).toString('ascii');
-    if (typ === 'IDAT') idat.push(d.slice(i + 8, i + 8 + len));
+    const body = d.slice(i + 8, i + 8 + len);
+    if (typ === 'IDAT') idat.push(body);
+    else if (typ === 'PLTE') plte = body;
+    else if (typ === 'tRNS') trns = body;
     i += 12 + len;
   }
-  let translucent = null;                       // null = not determined
-  if ((ctype === 6 || ctype === 4) && depth === 8 && interlace === 0) {
-    const nch = ctype === 6 ? 4 : 2;
-    const raw = zlib.inflateSync(Buffer.concat(idat));
-    const stride = w * nch;
-    const cur = Buffer.alloc(stride); let prev = Buffer.alloc(stride); let p = 0;
-    translucent = false;
-    for (let y = 0; y < h; y++) {
-      const f = raw[p++];
-      raw.copy(cur, 0, p, p + stride); p += stride;
-      for (let x = 0; x < stride; x++) {        // undo the row filter
-        const a = x >= nch ? cur[x - nch] : 0, b = prev[x], c = x >= nch ? prev[x - nch] : 0;
-        if (f === 1) cur[x] = (cur[x] + a) & 255;
-        else if (f === 2) cur[x] = (cur[x] + b) & 255;
-        else if (f === 3) cur[x] = (cur[x] + ((a + b) >> 1)) & 255;
-        else if (f === 4) {
-          const pa = Math.abs(b - c), pb = Math.abs(a - c), pc = Math.abs(a + b - 2 * c);
-          cur[x] = (cur[x] + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c)) & 255;
-        }
+  const nch = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[ctype];
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const stride = w * nch;
+  const flat = Buffer.alloc(h * stride);
+  let prev = Buffer.alloc(stride), p = 0;
+  for (let y = 0; y < h; y++) {
+    const f = raw[p++];
+    const cur = Buffer.alloc(stride);
+    raw.copy(cur, 0, p, p + stride); p += stride;
+    for (let x = 0; x < stride; x++) {          // undo the row filter
+      const a = x >= nch ? cur[x - nch] : 0, b = prev[x], c = x >= nch ? prev[x - nch] : 0;
+      if (f === 1) cur[x] = (cur[x] + a) & 255;
+      else if (f === 2) cur[x] = (cur[x] + b) & 255;
+      else if (f === 3) cur[x] = (cur[x] + ((a + b) >> 1)) & 255;
+      else if (f === 4) {
+        const pa = Math.abs(b - c), pb = Math.abs(a - c), pc = Math.abs(a + b - 2 * c);
+        cur[x] = (cur[x] + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c)) & 255;
       }
-      for (let x = nch - 1; x < stride; x += nch) if (cur[x] !== 255) { translucent = true; }
-      cur.copy(prev);
     }
-  } else if (ctype === 2 || ctype === 0) {
-    translucent = false;                        // no alpha channel at all
+    cur.copy(flat, y * stride); prev = cur;
   }
-  return { w, h, ctype, translucent };
+  const px = Buffer.alloc(w * h * 4);
+  let translucent = false;
+  for (let i = 0; i < w * h; i++) {
+    let r, g, b, a = 255;
+    if (ctype === 6) { r = flat[i*4]; g = flat[i*4+1]; b = flat[i*4+2]; a = flat[i*4+3]; }
+    else if (ctype === 2) { r = flat[i*3]; g = flat[i*3+1]; b = flat[i*3+2]; }
+    else if (ctype === 0) { r = g = b = flat[i]; }
+    else if (ctype === 4) { r = g = b = flat[i*2]; a = flat[i*2+1]; }
+    else { const k = flat[i]; r = plte[k*3]; g = plte[k*3+1]; b = plte[k*3+2];
+           a = (trns && k < trns.length) ? trns[k] : 255; }
+    if (a !== 255) translucent = true;
+    px[i*4] = r; px[i*4+1] = g; px[i*4+2] = b; px[i*4+3] = a;
+  }
+  return { w, h, ctype, translucent, px: wantPixels ? px : null };
 }
 
-console.log('\n1. apple-touch icons must be FULLY OPAQUE (iOS composites alpha on black)');
+/* THE RULE, stated as directly as it can be tested.
+   iOS composites a touch icon's alpha on BLACK. The GC-3D-Button art is inset ~14% with a drop
+   shadow, so that inset becomes a black frame. Whether that frame is invisible or ugly depends on
+   exactly one thing: how dark the button's own body is where it meets the frame. So: sample the
+   button body just inside its outer edge and require it dark.
+
+   Measured across the pack, 2026-08-26: Dark 36, White 38, Glass 35 — all three are dark BUTTONS
+   (the variant name describes the CROSS, not the tile) and all three are fine. Only Green is a
+   light tile, at 131, and only Green would show the frame. The GC-3D-ICON pack's bare cross reads
+   164 and fails for the other reason — it has no tile at all. Worth stating because "Green, White
+   and Glass would all break" was asserted here first and is simply not what the pixels say.
+
+   A fully-opaque file is exempt — it has no inset to frame, so the question does not arise. That
+   keeps the door open for a pre-flattened tile without making flattening mandatory, which is what
+   an earlier version of this file wrongly did: it banned alpha outright and would have rejected the
+   artwork as designed for a problem it does not have. */
+function buttonBodyLuma(file) {
+  const img = readPng(file, true);
+  const mid = Math.floor(img.h / 2), row = mid * img.w;
+  let x = 0;
+  while (x < img.w && img.px[(row + x) * 4 + 3] < 250) x++;   // first opaque px = button's left edge
+  if (x >= img.w) return null;
+  x += Math.max(2, Math.round(img.w * 0.03));                 // step inside the bevel highlight
+  const i = (row + x) * 4;
+  return 0.2126 * img.px[i] + 0.7152 * img.px[i + 1] + 0.0722 * img.px[i + 2];
+}
+
+console.log('\n1. apple-touch icons must READ AS ONE TILE once iOS drops the alpha');
 [['gc-touch-icon.png', 180], ['gc-touch-icon-167.png', 167], ['gc-touch-icon-152.png', 152]]
   .forEach(([f, size]) => {
     const p = path.join(ROOT, f);
     ok(fs.existsSync(p), f + ' exists');
     if (!fs.existsSync(p)) return;
     const img = readPng(p);
-    ok(img.translucent === false,
-       f + ' has NO translucent pixels — a pack file dropped in raw would fail here');
     ok(img.w === size && img.h === size, f + ' is ' + size + 'x' + size + ' (got ' + img.w + 'x' + img.h + ')');
+    if (!img.translucent) {
+      ok(true, f + ' is fully opaque — no inset, so no black frame to worry about');
+    } else {
+      const luma = buttonBodyLuma(p);
+      ok(luma !== null && luma < 90,
+         f + ' has a transparent inset, so its button body must be DARK (edge luma ' +
+         (luma === null ? 'n/a' : luma.toFixed(0)) + ', needs < 90)');
+    }
   });
 
 console.log('\n2. favicons must KEEP their alpha (a tab strip is light or dark, not ours to guess)');
