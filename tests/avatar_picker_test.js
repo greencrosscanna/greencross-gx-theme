@@ -128,6 +128,23 @@ console.log('\n5b. a stored key the picker cannot render is NEVER dropped');
   ok(/seed/.test(src), 'seed is handled explicitly rather than copied blindly');
 }
 
+console.log('\n5c. Save exits the way Remove does');
+{
+  /* Sky, 2026-08-26: "Tapping the Save button within the Avatar Builder should close out the window
+     and take you back to where you came from." The two exits used to differ — Remove navigated back
+     after 1200ms, Save sat on a success message and left you on a form with nothing left to do. */
+  var saveBlock = src.slice(src.indexOf('function doSave'), src.indexOf('function doClear'));
+  ok(/opts\.close/.test(saveBlock), 'a successful save calls close()');
+  ok(/setTimeout/.test(saveBlock), '...after a pause, so the confirmation is readable');
+  ok(/1200/.test(saveBlock), 'and the pause matches Remove (1200ms), so the two exits feel the same');
+  // A caller that owns the whole page has nowhere to go; it must not be forced to close.
+  ok(/else/.test(saveBlock), 'a caller with no close() keeps the old stay-put behaviour');
+  // Closing must never happen on a FAILED save — that would hide the error.
+  var failIdx = saveBlock.indexOf("res.ok === false");
+  var closeIdx = saveBlock.indexOf('opts.close');
+  ok(failIdx > -1 && failIdx < closeIdx, 'the failure path returns BEFORE the close, so an error is never hidden');
+}
+
 console.log('\n6. the leaderboard mock is opt-in, not baked in');
 {
   ok(/showLeaderboardPreview/.test(src), 'there is a showLeaderboardPreview option');

@@ -292,8 +292,18 @@
         settle(saveBtn, 'Save');
         if (res && res.ok === false) return status('✗ ' + (res.error || 'Save failed'), 'err');
         status('✓ Saved', 'ok');
-        setTimeout(function () { status(''); }, 3000);
         if (opts.onSaved) opts.onSaved(config);
+        /* SAVE CLOSES, same as Remove already did. Sky, 2026-08-26: "Tapping the Save button within
+           the Avatar Builder should close out the window and take you back to where you came from."
+           The two exits behaved differently before — Remove navigated back after 1200ms while Save sat
+           on "✓ Saved" for three seconds and left you on a form with nothing left to do, so the only
+           way out was the Back button you had already stopped looking at.
+           The pause is deliberate and matches Remove: closing instantly makes a successful save
+           indistinguishable from a click that missed, because the confirmation would be gone before it
+           was read. A caller with no close() keeps the old behaviour — the status clears and the
+           picker stays put, which is correct when it IS the page. */
+        if (opts.close) setTimeout(function () { opts.close(); }, 1200);
+        else setTimeout(function () { status(''); }, 3000);
       }, function (err) {
         settle(saveBtn, 'Save');
         status('✗ ' + ((err && err.message) || 'Save failed'), 'err');
