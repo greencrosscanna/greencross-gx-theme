@@ -1,0 +1,172 @@
+/* GX Avatar Picker — styles for gx-avatar-picker.js.
+ * Canonical source: greencross-gx-theme/gx-avatar-picker.css. Ported from Leaderboard's avatar view.
+ *
+ * OPT-IN. Deliberately NOT part of gx-theme.css: that file reaches five apps on their next load with
+ * no deploy gate, and this is ~200 lines of component styling that only two apps want. An app that
+ * does not link this file is untouched by it.
+ *
+ * EVERY class is gxava-. The original used .card, .active, .primary, .you, .initials and .app-page —
+ * thirty-three classes, six of them generic words that every app in the suite already styles. Landing
+ * those in a shared sheet would have restyled unrelated screens in apps that never asked for a picker.
+ *
+ * NO VIEWPORT ASSUMPTION. The original set min-height:100vh, correct for a routed full-page view and
+ * wrong inside Crew's roster panel. The host decides: add .gxava-full for the full-page treatment.
+ *
+ * Colours come from gx-theme custom properties with literal fallbacks, so the picker still renders
+ * correctly in an app that has not loaded gx-theme.css.
+ */
+
+.gxava-root { color: var(--text, #f0efea); }
+.gxava-full .gxava-root { min-height: 100vh; }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.gxava-header {
+  display: flex; align-items: baseline; gap: 16px;
+  padding: 24px 24px 20px; max-width: 1080px; margin: 0 auto;
+}
+.gxava-header h1 { margin: 0; font-size: 20px; }
+.gxava-crumb { color: var(--text-dim, #a8aba6); font-size: 13px; }
+.gxava-back {
+  background: none; border: none; color: var(--text-dim, #a8aba6);
+  cursor: pointer; font-size: 13px; padding: 4px 0;
+}
+.gxava-back:hover { color: var(--text, #f0efea); }
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.gxava-grid {
+  display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start;
+  max-width: 1080px; margin: 0 auto; padding: 0 24px 64px;
+}
+/* Kept as a real breakpoint. Flattening this to one column at every width was the bug waiting to
+   happen when these rules were lifted out of their @media by hand. */
+@media (max-width: 880px) {
+  .gxava-grid { grid-template-columns: 1fr; }
+}
+
+.gxava-preview, .gxava-controls {
+  background: var(--surface-1, #161a17);
+  border: 1px solid var(--border, #2a312d);
+  border-radius: 14px;
+}
+.gxava-preview { padding: 20px; position: sticky; top: 16px; }
+.gxava-controls { padding: 0; }
+.gxava-preview h3 {
+  margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-dim, #a8aba6); font-weight: 600;
+}
+
+/* ── Preview frame ──────────────────────────────────────────────────────── */
+.gxava-frame {
+  width: 100%; aspect-ratio: 1/1; border-radius: 12px;
+  border: 1px solid var(--border, #2a312d);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  background: radial-gradient(circle at 30% 25%, #7dd49a 0%, #3a8b5a 45%, #1a4d2f 100%);
+  box-shadow: 0 0 32px rgba(102,197,133,.18), inset 0 0 0 1px rgba(125,212,154,.2);
+  position: relative;
+}
+.gxava-frame img { width: 88%; height: 88%; display: block; }
+
+/* The GC hat is an overlay laid over the DiceBear image at matching scale — DiceBear renders
+   shortFlat underneath so hair shows beneath the brim. */
+.gxava-hat {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.gxava-hat svg { width: 88%; height: 88%; display: block; }
+.gxava-lbava .gxava-hat svg { width: 100%; height: 100%; }
+
+/* ── Actions ────────────────────────────────────────────────────────────── */
+.gxava-actions { display: flex; gap: 8px; margin-top: 14px; }
+.gxava-btn {
+  flex: 1; padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: 14px;
+  cursor: pointer; border: 1px solid var(--border, #2a312d);
+  background: var(--surface-2, #1f2420); color: var(--text, #f0efea);
+}
+.gxava-btn:hover { background: #272d29; }
+.gxava-btn.gxava-primary {
+  background: var(--green, #4ade80); border-color: var(--green, #4ade80); color: #0d100e;
+}
+.gxava-btn.gxava-primary:hover { opacity: .9; }
+.gxava-btn:disabled { opacity: .6; cursor: default; }
+
+/* ── Leaderboard preview (opt-in; showLeaderboardPreview) ───────────────── */
+.gxava-lbprev {
+  margin-top: 18px; padding: 14px; background: var(--surface-2, #1f2420);
+  border-radius: 12px; border: 1px solid var(--border, #2a312d);
+}
+.gxava-lbprev h4 {
+  margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-dim, #a8aba6); font-weight: 600;
+}
+.gxava-lbrow { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.gxava-lbrank {
+  width: 18px; color: var(--text-dim, #a8aba6); font-weight: 600; font-size: 12px; text-align: right;
+}
+.gxava-lbname { flex: 1; font-weight: 500; font-size: 14px; }
+.gxava-lbval { font-variant-numeric: tabular-nums; font-weight: 600; }
+.gxava-lbyou { background: rgba(102,197,133,.08); border-radius: 8px; padding: 6px 8px; margin: 0 -8px; }
+/* The small circle. NOT .lb-ava — that class is Leaderboard's own staff grid, styled by its layout
+   rules (.emp-card, .shift-person), and those stay in Leaderboard where they belong. */
+.gxava-lbava {
+  width: 32px; height: 32px; border-radius: 50%; overflow: hidden; flex: none;
+  display: flex; align-items: center; justify-content: center; position: relative;
+  background: radial-gradient(circle at 30% 25%, #7dd49a 0%, #3a8b5a 45%, #1a4d2f 100%);
+}
+.gxava-lbava img { width: 100%; height: 100%; display: block; }
+.gxava-lbinitials { font-weight: 700; font-size: 12px; color: #0d100e; }
+
+/* ── Tabs and panels ────────────────────────────────────────────────────── */
+.gxava-tabs {
+  display: flex; gap: 4px; padding: 12px 16px 0;
+  border-bottom: 1px solid var(--border, #2a312d);
+}
+.gxava-tab {
+  padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--text-dim, #a8aba6);
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.gxava-tab.gxava-on { color: var(--green, #4ade80); border-bottom-color: var(--green, #4ade80); }
+.gxava-panel { padding: 20px 20px 4px; display: none; }
+.gxava-panel.gxava-on { display: block; }
+
+.gxava-field { padding: 12px 0; border-bottom: 1px dashed var(--border, #2a312d); }
+.gxava-field:last-child { border-bottom: 0; }
+.gxava-field-label {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-dim, #a8aba6); font-weight: 600; margin-bottom: 10px;
+}
+
+/* ── Swatches and chips ─────────────────────────────────────────────────── */
+.gxava-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.gxava-swatch {
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+  border: 2px solid var(--surface-1, #161a17);
+  box-shadow: 0 0 0 1px var(--border, #2a312d); transition: transform .1s;
+}
+.gxava-swatch.gxava-sel { box-shadow: 0 0 0 2px var(--green, #4ade80); transform: scale(1.08); }
+.gxava-swatch:hover { transform: scale(1.08); }
+
+.gxava-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; max-height: 220px; overflow-y: auto; padding-right: 4px;
+}
+.gxava-chips::-webkit-scrollbar { width: 6px; }
+.gxava-chips::-webkit-scrollbar-thumb { background: var(--border, #2a312d); border-radius: 3px; }
+.gxava-chip {
+  padding: 6px 10px; border-radius: 999px; background: var(--surface-2, #1f2420);
+  border: 1px solid var(--border, #2a312d); font-size: 12px; cursor: pointer;
+  color: var(--text-dim, #a8aba6);
+}
+.gxava-chip:hover { background: #272d29; color: var(--text, #f0efea); }
+.gxava-chip.gxava-sel {
+  background: var(--green, #4ade80); border-color: var(--green, #4ade80); color: #0d100e;
+}
+
+/* ── Status and remove ──────────────────────────────────────────────────── */
+.gxava-status { text-align: center; margin: 8px 24px; font-size: 13px; min-height: 20px; }
+.gxava-status.gxava-ok  { color: var(--green, #4ade80); }
+.gxava-status.gxava-err { color: #ef4444; }
+.gxava-clear-wrap { margin-top: 12px; text-align: center; }
+.gxava-clear {
+  background: none; border: none; color: var(--text-dim, #a8aba6); font-size: 12px;
+  cursor: pointer; padding: 4px 8px; text-decoration: underline;
+}
+.gxava-clear:hover { color: var(--text, #f0efea); }

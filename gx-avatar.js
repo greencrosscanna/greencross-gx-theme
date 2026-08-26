@@ -88,5 +88,8 @@
            'onerror="this.parentNode.textContent=' + JSON.stringify(ini).replace(/"/g, '&quot;') + '">' + hat;
   }
 
-  global.GXAvatar = { url: url, chip: chip, initials: initials };
+  /* hatSvg is exported for the PICKER, which lays the overlay over a live preview image rather
+     than building a chip. Without it the picker needs its own copy of this markup, which is the
+     duplication this file exists to end — the hat already lived in three places once. */
+  global.GXAvatar = { url: url, chip: chip, initials: initials, hatSvg: GC_HAT_SVG };
 })(typeof window !== 'undefined' ? window : this);

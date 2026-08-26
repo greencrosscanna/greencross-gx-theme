@@ -2,6 +2,7 @@
 <title>GX shared UI — preview</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="gx-theme.css">
+<link rel="stylesheet" href="gx-avatar-picker.css">
 <style>
   /* body carries .gx-app exactly as every app does. Without it the preview missed
      -webkit-font-smoothing:antialiased and rendered every label HEAVIER than any real app would --
@@ -100,11 +101,16 @@
   <div style="margin:0 20px;"><button class="gx-btn-green" id="pvCl" type="button">Open version history</button></div>
 
 </div>
+<script src="gx-avatar.js"></script>
+<script src="gx-avatar-picker.js"></script>
 <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-client.js"></script>
 <script src="gx-topnav.js"></script>
 <script src="gx-stores.js"></script>
 <script src="gx-bugreport.js"></script>
 <script src="gx-changelog.js"></script>
+<h2 style="margin:28px 20px 8px">Avatar picker</h2>
+<div style="margin:0 20px 8px"><button class="gx-btn-green" id="pvAvaFull" type="button">Full page (LB mode)</button> <button class="gx-btn-green" id="pvAvaPanel" type="button">Panel (Crew mode)</button> <span class="pv-note" id="pvAvaEcho"></span></div>
+<div id="pvAva" style="margin:0 20px 40px"></div>
 <script>
   GXTopNav.init(); GXTopNav.startClock();
   document.addEventListener('gx-topnav:action', function(e){
@@ -137,4 +143,29 @@
              + '<b>'+s.display_name+'</b> <code>'+s.store_id+' · '+s.short_code+'</code></span>';
       }).join('') || '<span class="pv-note">no stores returned</span>';
     });
+
+/* Avatar picker preview — both mount modes, so the Crew PANEL case is visible without running Crew.
+   Panel mode is the one worth looking at: it must not show the leaderboard mock and must not assume
+   it owns the viewport. */
+(function () {
+  var host = document.getElementById('pvAva'), echo = document.getElementById('pvAvaEcho'), handle = null;
+  var demo = { skinColor:'ffdbb4', top:'_gchat', hairColor:'724133', eyes:'wink', eyebrows:'upDown',
+               mouth:'smile', facialHair:'_none', facialHairColor:'2c1b18', clothing:'hoodie',
+               clothesColor:'3c4f5c', accessories:'_none', accessoriesColor:'3c4f5c', hatColor:'262e33' };
+  function open(full) {
+    if (handle) handle.destroy();
+    host.className = full ? 'gxava-full' : '';
+    handle = GXAvatarPicker.mount(host, {
+      name: 'Sky Pinnick', seed: '00', config: demo,
+      showLeaderboardPreview: full,
+      close: function () { echo.textContent = 'close() fired'; },
+      save: function (cfg) {
+        echo.textContent = cfg ? ('save() — top=' + cfg.top) : 'save(null) — remove';
+        return Promise.resolve({ ok: true });
+      }
+    });
+  }
+  document.getElementById('pvAvaFull').addEventListener('click', function () { open(true); });
+  document.getElementById('pvAvaPanel').addEventListener('click', function () { open(false); });
+})();
 </script></body></html>
