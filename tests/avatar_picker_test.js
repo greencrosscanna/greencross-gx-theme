@@ -111,6 +111,23 @@ console.log('\n5. the option table and the defaults agree');
   ok(/_none/.test(src), '_none is handled explicitly');
 }
 
+console.log('\n5b. a stored key the picker cannot render is NEVER dropped');
+{
+  /* mount() used to copy opts.config only where the key was in DEFAULT_CONFIG, so re-saving through
+     the picker silently rewrote a stored avatar to whatever the editor happened to expose.
+     clothingGraphic was the live casualty: two real people had a pinned shirt design (deer, diamond)
+     that this picker had no control for, and one save would have handed their shirt back to the seed.
+     Found by the crew spoke during adoption, after the component was already in production. */
+  ok(/j !== 'seed'/.test(src), 'the config copy is no longer filtered against DEFAULT_CONFIG');
+  ok(!/if \(j in DEFAULT_CONFIG\)/.test(src), 'the dropping filter is gone');
+  ok(Object.keys(P.OPTIONS).indexOf('clothingGraphic') > -1, 'clothingGraphic is now an offered choice');
+  ok('clothingGraphic' in P.DEFAULT_CONFIG, '...and has a default');
+  ok(/graphicField/.test(src), 'and it is shown only for graphicShirt, not always');
+  // The seed is the one key deliberately NOT carried from the caller: Core stamps it on write, and
+  // a client-supplied seed is exactly what that stamping exists to stop mattering.
+  ok(/seed/.test(src), 'seed is handled explicitly rather than copied blindly');
+}
+
 console.log('\n6. the leaderboard mock is opt-in, not baked in');
 {
   ok(/showLeaderboardPreview/.test(src), 'there is a showLeaderboardPreview option');

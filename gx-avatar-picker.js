@@ -57,6 +57,7 @@
     facialHairColor: ['2c1b18','4a312c','724133','a55728','b58143','c93305','d6b370','e8e1e1','ecdcbf','f59797'],
     clothing:     ['blazerAndShirt','blazerAndSweater','collarAndSweater','graphicShirt','hoodie','shirtCrewNeck','shirtScoopNeck','shirtVNeck'],
     clothesColor: ['3c4f5c','65c9ff','262e33','5199e4','25557c','929598','a7ffc4','b1e2ff','e6e6e6','ff5c5c','ff488e','ffafb9','ffdeb5','ffffb1','ffffff'],
+    clothingGraphic: ['bat','bear','cumbia','deer','diamond','hola','pizza','resist','skull','skullOutline'],
     accessories:  ['_none','prescription01','prescription02','round','sunglasses','wayfarers'],
     accessoriesColor: ['3c4f5c','65c9ff','262e33','5199e4','25557c','929598','a7ffc4','b1e2ff','e6e6e6','ff5c5c','ff488e','ffafb9','ffdeb5','ffffb1','ffffff']
   };
@@ -65,7 +66,7 @@
     skinColor: 'f8d25c', top: '_none', hairColor: '2c1b18', hatColor: '262e33',
     eyes: 'wink', eyebrows: 'upDown', mouth: 'default',
     facialHair: '_none', facialHairColor: '2c1b18',
-    clothing: 'shirtCrewNeck', clothesColor: '929598',
+    clothing: 'shirtCrewNeck', clothesColor: '929598', clothingGraphic: 'bear',
     accessories: '_none', accessoriesColor: '3c4f5c'
   };
 
@@ -78,8 +79,12 @@
       ['Facial hair color','swatch','facialHairColor'] ] },
     { id: 'extras', label: 'Extras', fields: [
       ['Clothing','chip','clothing'], ['Clothing color','swatch','clothesColor'],
+      ['Shirt graphic','chip','clothingGraphic','graphicField'],
       ['Accessories','chip','accessories'], ['Accessory color','swatch','accessoriesColor'] ] }
   ];
+
+  // Fields that only apply in some configurations. Hidden at render, resolved by hatColorVisibility().
+  var CONDITIONAL_SLOTS = { hatColorField: 1, graphicField: 1 };
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -107,16 +112,27 @@
     var seed = String(opts.seed || name || '');
     var hasExisting = !!(opts.config && typeof opts.config === 'object' && Object.keys(opts.config).length);
 
+    /* CARRY FORWARD EVERY STORED KEY, not just the ones this table knows.
+     * This used to be `if (j in DEFAULT_CONFIG)`, which silently DROPPED any attribute the picker did
+     * not offer — so re-saving through it quietly rewrote the stored avatar to whatever the editor
+     * happened to expose. clothingGraphic was the live casualty: two people had a pinned shirt design
+     * (deer, diamond) that the picker had no control for, and a single save would have handed their
+     * shirt back to the seed. Crew's retired panel pinned it; this one did not, so the shared
+     * component was briefly a downgrade for exactly those two records.
+     * clothingGraphic is now a real control, but the filter was the actual bug: a picker must never
+     * lose data it cannot render. Unknown keys ride through untouched. */
     var config = {};
     for (var k in DEFAULT_CONFIG) config[k] = DEFAULT_CONFIG[k];
-    if (hasExisting) for (var j in opts.config) if (j in DEFAULT_CONFIG) config[j] = opts.config[j];
+    if (hasExisting) for (var j in opts.config) if (j !== 'seed') config[j] = opts.config[j];
 
     // ── markup ────────────────────────────────────────────────────────────────────────────────
     function fieldHtml(f) {
       var label = f[0], kind = f[1], key = f[2], slot = f[3];
       var attr = kind === 'swatch' ? 'data-gxava-swatches' : 'data-gxava-chips';
       return '<div class="gxava-field"' + (slot ? ' data-gxava-slot="' + slot + '"' : '')
-           + (slot === 'hatColorField' ? ' style="display:none"' : '') + '>'
+           // Conditional fields start hidden and are revealed by hatColorVisibility() on first
+           // paint, rather than rendering visible and blinking out a frame later.
+           + (CONDITIONAL_SLOTS[slot] ? ' style="display:none"' : '') + '>'
            +   '<div class="gxava-field-label">' + esc(label) + '</div>'
            +   '<div class="gxava-' + (kind === 'swatch' ? 'swatches' : 'chips') + '" ' + attr + '="' + key + '"></div>'
            + '</div>';
@@ -200,6 +216,9 @@
       var hat  = q('[data-gxava-slot="hatColorField"]');
       if (hair) hair.style.display = isHat ? 'none' : '';
       if (hat)  hat.style.display  = isHat ? '' : 'none';
+      // The shirt graphic only exists on graphicShirt; offering it otherwise implies it does something.
+      var gfx = q('[data-gxava-slot="graphicField"]');
+      if (gfx) gfx.style.display = (config.clothing === 'graphicShirt') ? '' : 'none';
     }
 
     function buildSwatches(key) {
