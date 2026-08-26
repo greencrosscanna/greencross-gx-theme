@@ -108,7 +108,7 @@
 <script src="gx-stores.js"></script>
 <script src="gx-bugreport.js"></script>
 <script src="gx-changelog.js"></script>
-<h2 style="margin:28px 20px 8px">Avatar picker</h2>
+<h2 style="margin:28px 20px 8px">Avatar picker <span class="pv-note">(gx-avatar-picker.js — mounted below)</span></h2>
 <div style="margin:0 20px 8px"><button class="gx-btn-green" id="pvAvaFull" type="button">Full page (LB mode)</button> <button class="gx-btn-green" id="pvAvaPanel" type="button">Panel (Crew mode)</button> <span class="pv-note" id="pvAvaEcho"></span></div>
 <div id="pvAva" style="margin:0 20px 40px"></div>
 <script>
@@ -167,5 +167,10 @@
   }
   document.getElementById('pvAvaFull').addEventListener('click', function () { open(true); });
   document.getElementById('pvAvaPanel').addEventListener('click', function () { open(false); });
+  /* Render on load. The first version of this only mounted on click, so the section showed a heading,
+     two buttons and an empty div — which reads as "the picker is broken", not "press a button".
+     A preview whose default state is blank is not a preview. Panel mode is the default because it is
+     the case that cannot be seen anywhere else without running Crew. */
+  open(false);
 })();
 </script></body></html>
