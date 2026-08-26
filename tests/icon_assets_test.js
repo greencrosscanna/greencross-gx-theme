@@ -91,34 +91,24 @@ function readPng(file, wantPixels) {
   return { w, h, ctype, translucent, px: wantPixels ? px : null };
 }
 
-/* THE RULE, stated as directly as it can be tested.
-   iOS composites a touch icon's alpha on BLACK. The GC-3D-Button art is inset ~14% with a drop
-   shadow, so that inset becomes a black frame. Whether that frame is invisible or ugly depends on
-   exactly one thing: how dark the button's own body is where it meets the frame. So: sample the
-   button body just inside its outer edge and require it dark.
+/* THE RULE, and it is settled by a photograph rather than by reasoning.
+   iOS composites an apple-touch-icon's alpha on WHITE. Not black — WHITE. Sky's home screen,
+   2026-08-26: the GC-3D-Button art shipped as-is rendered as a small dark button sitting inside a
+   white rounded square, because the artwork is inset ~14% with a drop shadow and that entire inset
+   turned white. So a touch icon must be FULL-BLEED and FULLY OPAQUE. No inset, no alpha.
 
-   Measured across the pack, 2026-08-26: Dark 36, White 38, Glass 35 — all three are dark BUTTONS
-   (the variant name describes the CROSS, not the tile) and all three are fine. Only Green is a
-   light tile, at 131, and only Green would show the frame. The GC-3D-ICON pack's bare cross reads
-   164 and fails for the other reason — it has no tile at all. Worth stating because "Green, White
-   and Glass would all break" was asserted here first and is simply not what the pixels say.
+   THIS FILE HAS NOW ASSERTED THREE DIFFERENT RULES. Worth keeping the history, because two of them
+   were confidently argued and wrong:
+     1. "must be fully opaque"          — right answer, wrong reason (assumed a BLACK composite).
+     2. "alpha is fine if the body is dark" — I simulated the composite on black, the raw file looked
+        correct, and I reverted to it. The simulation encoded the same wrong assumption as the claim
+        it was supposed to be testing, so it confirmed it. A test built on the belief it is checking
+        cannot fail.
+     3. this one — same assertion as (1), but grounded in what the device actually did.
+   The lesson is not "alpha bad". It is that the composite colour was never verified against a real
+   device until a screenshot arrived, and every argument built on top of the guess inherited it. */
 
-   A fully-opaque file is exempt — it has no inset to frame, so the question does not arise. That
-   keeps the door open for a pre-flattened tile without making flattening mandatory, which is what
-   an earlier version of this file wrongly did: it banned alpha outright and would have rejected the
-   artwork as designed for a problem it does not have. */
-function buttonBodyLuma(file) {
-  const img = readPng(file, true);
-  const mid = Math.floor(img.h / 2), row = mid * img.w;
-  let x = 0;
-  while (x < img.w && img.px[(row + x) * 4 + 3] < 250) x++;   // first opaque px = button's left edge
-  if (x >= img.w) return null;
-  x += Math.max(2, Math.round(img.w * 0.03));                 // step inside the bevel highlight
-  const i = (row + x) * 4;
-  return 0.2126 * img.px[i] + 0.7152 * img.px[i + 1] + 0.0722 * img.px[i + 2];
-}
-
-console.log('\n1. apple-touch icons must READ AS ONE TILE once iOS drops the alpha');
+console.log('\n1. apple-touch icons must be FULL-BLEED — iOS composites alpha on WHITE');
 [['gc-touch-icon.png', 180], ['gc-touch-icon-167.png', 167], ['gc-touch-icon-152.png', 152]]
   .forEach(([f, size]) => {
     const p = path.join(ROOT, f);
@@ -126,14 +116,8 @@ console.log('\n1. apple-touch icons must READ AS ONE TILE once iOS drops the alp
     if (!fs.existsSync(p)) return;
     const img = readPng(p);
     ok(img.w === size && img.h === size, f + ' is ' + size + 'x' + size + ' (got ' + img.w + 'x' + img.h + ')');
-    if (!img.translucent) {
-      ok(true, f + ' is fully opaque — no inset, so no black frame to worry about');
-    } else {
-      const luma = buttonBodyLuma(p);
-      ok(luma !== null && luma < 90,
-         f + ' has a transparent inset, so its button body must be DARK (edge luma ' +
-         (luma === null ? 'n/a' : luma.toFixed(0)) + ', needs < 90)');
-    }
+    ok(img.translucent === false,
+       f + ' has NO transparent pixels — any inset becomes a WHITE frame on the home screen');
   });
 
 console.log('\n2. favicons must KEEP their alpha (a tab strip is light or dark, not ours to guess)');
