@@ -175,6 +175,16 @@
       reporter: function () { return /* signed-in user id */ ''; },
       version:  function () { return /* APP_VERSION */ ''; },
       context:  function () { return { /* tab: state.tab, store: state.store */ }; },
+      /* Lets a reporter attach a screenshot — paste, drop or pick. The screenshot field does not
+         render at all until this is supplied, so deleting this line is a real (if quiet) removal of
+         the feature, not a tidy-up.
+
+         It is a SEPARATE call from `submit` on purpose: the image cannot ride the report payload.
+         Every app owns its own submit transport and several in the suite are GET query strings,
+         which a ~273KB base64 would not survive. gxCoreUploader is the shared transport, handed THIS
+         app's own token — so there is still no second auth path, for the same reason `submit` is a
+         function. Wire the token getter to whatever this app already uses to authenticate. */
+      uploadShot: GXBugReport.gxCoreUploader(GXCORE_URL, function () { return /* session token */ ''; }),
     });
   </script>
 
