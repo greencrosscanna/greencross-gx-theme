@@ -121,5 +121,24 @@ console.log('\n5. a check without GXClient is a no-op, not a crash');
   ok(!threw, 'gx-client.js may not have arrived yet — this must not throw into the app');
 }
 
+
+console.log('\n6. the reload keeps the hash route (the kiosk depends on it)');
+{
+  const { U, win, mk } = load({ location: { pathname: '/greencross-leaderboard/', hash: '#/store/river-rd',
+    replace(u) { win.__replaced = u; } } });
+  win.location.replace = (u) => { win.__replaced = u; };
+  // NOT pre-creating #gx-upd here, unlike the cases above: build() returns early when it already
+  // exists, and then never wires the button's click listener. The children are pre-created because
+  // this stub does not parse innerHTML.
+  mk('gx-upd-txt'); mk('gx-upd-go'); mk('gx-upd-x');
+  U.init({ app: 'performance', gxcore: 'https://x/exec', version: () => 'v1.620', autoReload: true });
+  U._show('v1.621');                      // sets `latest` via the normal path
+  const go = mk('gx-upd-go');
+  (go._listeners.click || []).forEach(fn => fn());
+  ok(/\?v=/.test(win.__replaced || ''), 'reloads to a URL the browser has not seen (?v=)');
+  ok(/#\/store\/river-rd$/.test(win.__replaced || ''),
+     'and KEEPS the hash — dropping it would send an unattended kiosk back to the default view');
+}
+
 console.log('\n' + (fail ? 'FAILED' : 'ok') + ' — ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

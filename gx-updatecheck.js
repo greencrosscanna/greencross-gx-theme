@@ -94,9 +94,18 @@
     var v = latest || String(Date.now());
     try { global.sessionStorage.setItem('gx_upd_tried', v); } catch (e) {}
     /* A plain reload() can be served from cache, which is the whole problem. A URL the browser has
-       never seen cannot be. */
+       never seen cannot be — hence the ?v=.
+
+       THE HASH IS PRESERVED, and that is not cosmetic. Leaderboard routes on the hash and is the one
+       app that reloads ITSELF (autoReload, because a kiosk has nobody to click). Dropping the hash
+       there would silently return an unattended screen to the default view and leave it there — a
+       worse failure than the stale build it was fixing, because nobody is watching either.
+
+       Existing query params are dropped deliberately: they are how an app is deep-linked, and ?v= has
+       to be the thing that differs or the browser may serve the same cached entry. Carrying a stale
+       one forward risks re-pinning whatever it pointed at. */
     var loc = global.location;
-    loc.replace(loc.pathname + '?v=' + encodeURIComponent(v));
+    loc.replace(loc.pathname + '?v=' + encodeURIComponent(v) + (loc.hash || ''));
   }
 
   function current() { return call(cfg && cfg.version, ''); }
