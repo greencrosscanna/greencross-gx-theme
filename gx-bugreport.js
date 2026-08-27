@@ -7,7 +7,8 @@
  * no review in between. Treat it accordingly.
  *
  * ── WHY THIS EXISTS ──────────────────────────────────────────────────────────────────────────────
- * The bug form was copy-pasted. Measured 2026-08-23:
+ * The bug form was copy-pasted. THE STATE THIS FILE WAS BUILT TO REPLACE, measured 2026-08-23 —
+ * history, NOT current state; see the table below it before you act on this one:
  *
  *   inventory    full form · 21 local .bug-* CSS rules · action 'bugreport'
  *   leaderboard  full form · 21 local .bug-* CSS rules · action 'bugreport'   (byte-alike to inventory)
@@ -17,6 +18,21 @@
  *
  * 63 duplicated CSS rules, three spellings of one action, and two apps with no reporter. Adding one
  * field to "the bug form" meant four edits and two ports. That is the whole case for this file.
+ *
+ * ── WHO USES IT NOW (2026-08-26) ────────────────────────────────────────────────────────────────
+ * ALL SIX. The table above is the "before", and it has already misled someone: on 2026-08-26 it was
+ * read as current, concluding pricecards had only a window.prompt and that spiff and crew had no
+ * reporter — so two apps were left out of a suite-wide change until Sky caught it.
+ *
+ * The detail that makes that easy to get wrong twice: two apps wire this from their APP JS, not from
+ * index.html, so grepping index.html alone under-counts.
+ *
+ *   inventory    index.html          leaderboard  index.html
+ *   sales        index.html          spiff        index.html
+ *   pricecards   generator.js        crew         crew.js
+ *
+ * Action names still differ per app ('bugreport' / 'reportbug' / 'reportBug') because each proxy
+ * spells its own; that is what cfg.action is for and it is not drift to fix.
  *
  * ── THE CONTEXT SNAPSHOT (what we do instead of attaching a screenshot) ──────────────────────────
  * Every report carries route, filters, viewport, browser and the last console error, captured
