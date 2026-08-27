@@ -35,7 +35,20 @@
  * column, and a capture step (html2canvas is ~200KB on every load and only approximates the render;
  * getDisplayMedia gives real pixels but prompts the user to pick a window every time). Sky's call on
  * 2026-08-23 was to ship the text snapshot first and revisit images only if a real report needs one.
- * That call still stands — but if you reopen it, reopen it on the cost, not on a false impossibility.
+ *
+ * ── REOPENED 2026-08-26, on the cost, as that note asked ─────────────────────────────────────────
+ * The real report arrived: a Sales pace bug was diagnosable only from its screenshot, and a bug-fixed
+ * email had already invited a reporter to "file a new ticket with a photo of the screen" — promising
+ * a pathway that did not exist.
+ *
+ * The two costs both came down. The SINK exists: GX Core gained doPost (it had none, which is what
+ * "cannot RECEIVE one" meant above) plus a Drive-backed bug_shot route. And the CAPTURE step turned
+ * out to be free — neither html2canvas nor getDisplayMedia. People already take screenshots with
+ * Cmd-Shift-4; this accepts a PASTE or a file pick. Zero bytes added to any app, real pixels, no
+ * permission prompt.
+ *
+ * The context snapshot stays, and is still the more useful half for most reports: "the store filter is
+ * stuck" needs to say WHICH filter, and a picture of a chart does not.
  *
  * Console errors are captured only from the moment this script loads, and only the last few. It is a
  * breadcrumb, not a log: anything bigger belongs in the app's own telemetry, and GX Core truncates
@@ -50,7 +63,16 @@
  *     context:  () => ({ tab: state.tab, store: state.store }),   // optional app-specific state
  *     version:  () => APP_VERSION,            // optional
  *     fab:      true,                         // optional — false to supply your own trigger
+ *     uploadShot: GXBugReport.gxCoreUploader(GXCORE_URL, () => session.token),  // optional
  *   });
+ *
+ * `uploadShot` is what turns the screenshot field on. Absent, the field is not rendered at all — so
+ * this file is inert in an app that has not opted in, and no app breaks by ignoring it.
+ *
+ * It is a cfg function for the same reason `submit` is: the app owns auth. gxCoreUploader() is a
+ * ready-made implementation the app hands its OWN token to, so the credential still comes from the
+ * app's session while the transport lives here once instead of five times — which is the whole point
+ * of this file.
  *
  * `submit` is deliberately the app's function rather than a URL. Each app already has a working,
  * authenticated path to its own proxy (token handling, session expiry, retry); re-implementing that
@@ -164,6 +186,12 @@
           '<div><div class="gx-bug-label">Details <span class="gx-bug-opt">(optional)</span></div>' +
             '<textarea class="gx-bug-textarea" id="gxBugDesc" ' +
               'placeholder="Steps to reproduce, what you expected vs. what happened…"></textarea></div>' +
+          '<div id="gxBugShotWrap" hidden><div class="gx-bug-label">Screenshot <span class="gx-bug-opt">(optional)</span></div>' +
+            '<div class="gx-bug-shot" id="gxBugShotDrop" tabindex="0">' +
+              '<span id="gxBugShotHint">Paste an image (Cmd/Ctrl+V), or <button type="button" class="gx-bug-shot-pick" id="gxBugShotPick">choose a file</button></span>' +
+              '<img id="gxBugShotPrev" alt="" hidden>' +
+              '<button type="button" class="gx-bug-shot-clear" id="gxBugShotClear" hidden title="Remove">&#10005;</button>' +
+            '</div><input type="file" accept="image/*" id="gxBugShotFile" hidden></div>' +
           '<div><div class="gx-bug-label">Priority</div>' +
             '<div class="gx-bug-pri" id="gxBugPri">' +
               PRIORITIES.map(function (p) {
@@ -184,6 +212,30 @@
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
     doc.getElementById('gxBugClose').addEventListener('click', close);
     doc.getElementById('gxBugSubmit').addEventListener('click', submit);
+
+    // The screenshot field renders ONLY when the app supplied a transport for it. An app that has not
+    // opted in sees exactly the form it saw before.
+    if (cfg && typeof cfg.uploadShot === 'function') {
+      doc.getElementById('gxBugShotWrap').hidden = false;
+      var drop = doc.getElementById('gxBugShotDrop');
+      var file = doc.getElementById('gxBugShotFile');
+      doc.getElementById('gxBugShotPick').addEventListener('click', function () { file.click(); });
+      file.addEventListener('change', function () { setShot(file.files && file.files[0]); file.value = ''; });
+      doc.getElementById('gxBugShotClear').addEventListener('click', function (e) {
+        e.stopPropagation(); setShot(null);
+      });
+      // Paste is the point. Cmd-Shift-4 puts a PNG on the clipboard, so this is the shortest path from
+      // "the screen looks wrong" to "the screen is attached" — no capture library, no window picker.
+      // Bound on the document, not the drop zone: nobody thinks to focus a box before pasting.
+      doc.addEventListener('paste', onPaste);
+      drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('is-over'); });
+      drop.addEventListener('dragleave', function () { drop.classList.remove('is-over'); });
+      drop.addEventListener('drop', function (e) {
+        e.preventDefault(); drop.classList.remove('is-over');
+        var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f) setShot(f);
+      });
+    }
     doc.getElementById('gxBugPri').addEventListener('click', function (e) {
       var b = e.target.closest ? e.target.closest('[data-pri]') : null;
       if (b) { priority = b.getAttribute('data-pri'); paintPriority(); }
@@ -228,6 +280,88 @@
     if (o) o.classList.remove('open');
   }
 
+  // ── the screenshot ─────────────────────────────────────────────────────────────────────────────
+  var shotFile = null, shotUrl = '';
+  var SHOT_MAX = 10 * 1024 * 1024;
+
+  function setShot(f) {
+    var doc = global.document;
+    var prev = doc.getElementById('gxBugShotPrev');
+    var hint = doc.getElementById('gxBugShotHint');
+    var clr  = doc.getElementById('gxBugShotClear');
+    var st   = doc.getElementById('gxBugStatus');
+    shotUrl = '';                                  // any change invalidates a previous upload
+    if (f && f.size > SHOT_MAX) {
+      if (st) st.textContent = 'That image is over 10MB.';
+      f = null;
+    }
+    shotFile = f || null;
+    if (!shotFile) {
+      if (prev) { prev.hidden = true; prev.removeAttribute('src'); }
+      if (hint) hint.hidden = false;
+      if (clr) clr.hidden = true;
+      return;
+    }
+    // Object URL rather than a base64 data: URI — the file is up to 10MB and this preview is thrown
+    // away on close. Revoked when replaced so a long session cannot leak them.
+    if (prev) {
+      if (prev.src) { try { global.URL.revokeObjectURL(prev.src); } catch (e) {} }
+      prev.src = global.URL.createObjectURL(shotFile);
+      prev.hidden = false;
+    }
+    if (hint) hint.hidden = true;
+    if (clr) clr.hidden = false;
+    if (st) st.textContent = '';
+  }
+
+  function onPaste(e) {
+    if (!cfg || typeof cfg.uploadShot !== 'function') return;
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].kind === 'file' && /^image\//.test(items[i].type)) {
+        var f = items[i].getAsFile();
+        if (f) { e.preventDefault(); setShot(f); return; }
+      }
+    }
+  }
+
+  // A ready-made uploadShot for any app on GX Core sign-on. Lives HERE so the transport exists once
+  // rather than five times — the app supplies only its own token, so auth still comes from the app's
+  // session exactly as `submit` does.
+  //
+  // Routed through GXClient.postJSON: text/plain to dodge the CORS preflight /exec cannot answer, and
+  // it detects the Drive HTML page by body shape. retries:2 is a deliberate opt-in — re-running an
+  // upload writes a second Drive file, which is wasteful but harmless, and losing a screenshot to one
+  // flaky hop is worse.
+  function gxCoreUploader(gxCoreUrl, tokenFn) {
+    return function (file) {
+      return readAsBase64(file).then(function (b64) {
+        if (typeof global.GXClient !== 'function') throw new Error('GXClient is not loaded');
+        var gx = global.GXClient(gxCoreUrl);
+        if (typeof gx.postJSON !== 'function') throw new Error('this GXClient has no postJSON');
+        return gx.postJSON('bug_shot', {
+          action: 'bug_shot',
+          token: (typeof tokenFn === 'function' ? tokenFn() : tokenFn) || '',
+          name: file.name || 'screenshot.png',
+          type: file.type || 'image/png',
+          data: b64,
+        }, { retries: 2 });
+      });
+    };
+  }
+
+  function readAsBase64(file) {
+    return new Promise(function (res, rej) {
+      var fr = new global.FileReader();
+      fr.onload = function () {
+        var s = String(fr.result || ''), c = s.indexOf(',');
+        res(c >= 0 ? s.slice(c + 1) : s);          // strip the data: prefix
+      };
+      fr.onerror = function () { rej(new Error('could not read that file')); };
+      fr.readAsDataURL(file);
+    });
+  }
+
   function submit() {
     var doc = global.document;
     var title = doc.getElementById('gxBugTitle').value.trim();
@@ -251,6 +385,27 @@
     };
 
     Promise.resolve()
+      // The image goes up FIRST, on its own, and only its URL joins the payload. It cannot ride the
+      // report: each app owns that transport and they are not uniform — Sales submits through a GET
+      // query string, which a ~273KB base64 would not survive.
+      .then(function () {
+        if (!shotFile || typeof cfg.uploadShot !== 'function') return null;
+        if (shotUrl) return { ok: true, url: shotUrl };      // already uploaded; a retry must not re-send
+        btn.textContent = 'Uploading…';
+        return cfg.uploadShot(shotFile);
+      })
+      .then(function (up) {
+        if (up && up.ok === false) {
+          // Flagged so the catch shows THIS reason instead of the generic transport message. "Check
+          // your connection" is actively misleading for "that image is over 10MB" — it sends someone
+          // to retry the one thing that cannot work.
+          var e = new Error(up.error || 'Could not upload the screenshot');
+          e.gxShow = true;
+          throw e;
+        }
+        if (up && up.url) { shotUrl = up.url; payload.screenshot_url = up.url; }
+        btn.textContent = 'Sending…';
+      })
       .then(function () { return cfg.submit(payload); })
       .then(function (res) {
         // An app's transport may resolve with {ok:false,error} instead of rejecting. Treating that as
@@ -266,7 +421,9 @@
       .catch(function (e) {
         btn.disabled = false;
         btn.textContent = 'Submit';
-        status.textContent = 'Could not send — check your connection and try again.';
+        status.textContent = (e && e.gxShow && e.message)
+          ? e.message
+          : 'Could not send — check your connection and try again.';
         try { console.warn('[gx-bugreport]', e); } catch (_) {}
       });
   }
@@ -290,6 +447,9 @@
   var GXBugReport = {
     init: init, open: open, close: close,
     snapshot: snapshot,          // exposed for tests and for an app that wants it elsewhere
+    // A ready-made cfg.uploadShot for any app on GX Core sign-on: the app hands it a token getter, so
+    // the credential is still the app's while the transport lives here once instead of five times.
+    gxCoreUploader: gxCoreUploader,
     _push: push,                 // tests
   };
   global.GXBugReport = GXBugReport;

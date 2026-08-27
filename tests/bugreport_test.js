@@ -261,6 +261,121 @@ console.log('\n5. a failed send is never reported as success');
      'an app that forgot to wire submit says so instead of silently doing nothing');
 }
 
+
+/* ── the screenshot field (added 2026-08-26) ────────────────────────────────────────────────────
+   The rule that matters is OPT-IN: an app that has not supplied uploadShot must see exactly the form
+   it saw before. Five live apps load this file from Pages inside a 10-minute cache, so a field that
+   appeared everywhere the moment this shipped would be a change nobody asked for in four of them. */
+console.log('\nS1. the field is opt-in');
+{
+  const { GXB, doc } = load();
+  GXB.init({ app: 'inventory', submit: () => ({ ok: true }) });
+  GXB.open();
+  // Asserted on the MARKUP, not on the stub's element: this DOM stub does not parse innerHTML, so an
+  // auto-vivified node reports hidden:false regardless of what the template says. Checking the string
+  // is what actually proves the field ships hidden.
+  ok(/id="gxBugShotWrap" hidden/.test(doc.getElementById('gxBugOverlay').innerHTML),
+     'no uploadShot → the screenshot field is rendered hidden');
+  ok(!(doc.getElementById('gxBugShotPick')._listeners || {}).click,
+     'and nothing is wired — an app that ignored this release is untouched');
+}
+{
+  const { GXB, doc } = load();
+  GXB.init({ app: 'inventory', submit: () => ({ ok: true }), uploadShot: () => ({ ok: true, url: 'u' }) });
+  GXB.open();
+  ok(doc.getElementById('gxBugShotWrap').hidden === false, 'with uploadShot → the field renders');
+  ok(((doc.getElementById('gxBugShotPick')._listeners || {}).click || []).length === 1, 'the picker is wired');
+  ok(((doc._listeners || {}).paste || []).length === 1,
+     'paste is bound on the DOCUMENT — nobody focuses a box before hitting Cmd-V');
+}
+
+console.log('\nS2. the image goes up FIRST, and only its URL joins the payload');
+{
+  const order = [];
+  let sent = null;
+  const { GXB, doc, win } = load();
+  win.URL = { createObjectURL: () => 'blob:x', revokeObjectURL() {} };
+  GXB.init({
+    app: 'inventory',
+    submit: p => { order.push('submit'); sent = p; return { ok: true, id: 'bug_9' }; },
+    uploadShot: f => { order.push('upload'); return Promise.resolve({ ok: true, url: 'https://drive/FILE' }); },
+  });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'it broke';
+  // Drive setShot through the picker's own change listener, so this exercises the real wiring.
+  const file = doc.getElementById('gxBugShotFile');
+  file.files = [{ name: 'shot.png', type: 'image/png', size: 2048 }];
+  (file._listeners.change || []).forEach(fn => fn());
+  click(doc, 'gxBugSubmit');
+  await tick(); await tick(); await tick();
+  ok(order.join(',') === 'upload,submit', 'upload runs BEFORE submit, never in parallel');
+  ok(sent && sent.screenshot_url === 'https://drive/FILE',
+     'the payload carries only the URL — a base64 would not survive Sales\' GET transport');
+  ok(sent && !sent.screenshot, 'and no raw image is in the payload');
+}
+
+console.log('\nS3. a failed upload does not silently file a report without the picture');
+{
+  let submitted = false;
+  const { GXB, doc, win } = load();
+  win.URL = { createObjectURL: () => 'blob:x', revokeObjectURL() {} };
+  GXB.init({
+    app: 'inventory',
+    submit: () => { submitted = true; return { ok: true }; },
+    uploadShot: () => Promise.resolve({ ok: false, error: 'over 10MB' }),
+  });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'it broke';
+  const file = doc.getElementById('gxBugShotFile');
+  file.files = [{ name: 'shot.png', type: 'image/png', size: 2048 }];
+  (file._listeners.change || []).forEach(fn => fn());
+  click(doc, 'gxBugSubmit');
+  await tick(); await tick(); await tick();
+  ok(submitted === false, 'the report is NOT sent when the upload was refused');
+  ok(/10MB|upload/i.test(doc.getElementById('gxBugStatus').textContent || ''),
+     'and the reason is shown rather than swallowed');
+}
+
+console.log('\nS4. no image attached → unchanged behaviour');
+{
+  let sent = null, uploads = 0;
+  const { GXB, doc } = load();
+  GXB.init({
+    app: 'inventory',
+    submit: p => { sent = p; return { ok: true }; },
+    uploadShot: () => { uploads++; return { ok: true, url: 'u' }; },
+  });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'no picture';
+  click(doc, 'gxBugSubmit');
+  await tick(); await tick();
+  ok(uploads === 0, 'uploadShot is not called when nothing was attached');
+  ok(sent && !sent.screenshot_url, 'and no screenshot_url is added');
+}
+
+console.log('\nS5. gxCoreUploader hands the app\'s OWN token to GX Core');
+{
+  const calls = [];
+  const { GXB, win } = load();
+  win.GXClient = function (url) {
+    calls.push(['client', url]);
+    return { postJSON: (action, payload, opts) => { calls.push(['post', action, payload, opts]); return { ok: true, url: 'https://drive/X' }; } };
+  };
+  win.FileReader = function () {
+    this.readAsDataURL = () => { this.result = 'data:image/png;base64,QUJD'; this.onload(); };
+  };
+  const up = GXB.gxCoreUploader('https://gxcore/exec', () => 'sky:123:sig');
+  const r = await up({ name: 'a.png', type: 'image/png' });
+  ok(r.ok === true && r.url === 'https://drive/X', 'it resolves the Drive url');
+  const post = calls.find(c => c[0] === 'post');
+  ok(post && post[1] === 'bug_shot', 'it calls the bug_shot route');
+  ok(post && post[2].token === 'sky:123:sig',
+     'with the token the APP supplied — auth still comes from the app session, as cfg.submit does');
+  ok(post && post[2].data === 'QUJD', 'and the base64 has its data: prefix stripped');
+  ok(post && post[3] && post[3].retries === 2,
+     'retries are opted into explicitly — postJSON defaults to none for writes');
+}
+
 console.log('\n' + (fail ? 'FAILED' : 'ok') + ' — ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
 })();

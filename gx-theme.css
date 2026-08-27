@@ -475,3 +475,19 @@ html.gx-embedded .gx-bug-fab{display:none;}
 .gx-bug-submit:disabled{opacity:.4;cursor:default;}
 .gx-bug-status{font-size:12px;color:var(--gx-red);min-height:15px;text-align:center;}
 .gx-bug-success{text-align:center;padding:18px 0;font-size:13.5px;color:var(--gx-green);font-weight:600;}
+
+/* ── Bug report: the screenshot field ──────────────────────────────────────────────────────────────
+   Added 2026-08-26 with the paste-a-screenshot pathway. The drop zone is deliberately shallow when
+   empty (a bug form is already tall and this is optional) and grows only once an image is in it. */
+.gx-bug-shot{position:relative;display:flex;align-items:center;justify-content:center;min-height:54px;
+  padding:10px;border:1px dashed var(--gx-border-strong);border-radius:8px;background:var(--gx-bg);
+  color:var(--gx-text-mute);font-size:12px;text-align:center;cursor:default;}
+.gx-bug-shot.is-over{border-color:var(--gx-green);background:var(--gx-green-soft);}
+.gx-bug-shot:focus-visible{outline:2px solid var(--gx-green-dim);outline-offset:2px;}
+.gx-bug-shot img{max-width:100%;max-height:190px;border-radius:6px;display:block;}
+.gx-bug-shot-pick{background:none;border:0;color:var(--gx-green);cursor:pointer;font-size:12px;
+  padding:0;text-decoration:underline;}
+.gx-bug-shot-clear{position:absolute;top:6px;right:6px;width:22px;height:22px;line-height:1;
+  border-radius:50%;border:1px solid var(--gx-border-strong);background:var(--gx-surface-2);
+  color:var(--gx-text);cursor:pointer;font-size:11px;}
+.gx-bug-shot-clear:hover{border-color:var(--gx-green-dim);color:var(--gx-green);}
