@@ -37,7 +37,13 @@ print('  ✓ gx-theme.css — braces balanced (%d rules)' % o)
 PY
 
 # 3. Every shared script must parse. These are loaded by all six apps.
-for f in gx-avatar.js gx-bugreport.js gx-changelog.js gx-client.js gx-dev.js gx-stores.js gx-topnav.js; do
+# DERIVED, not typed. This was a hand-written list of seven and had silently fallen behind by three:
+# gx-avatar-picker.js and gx-session.js were never linted at all, and gx-updatecheck.js would have
+# joined them on 2026-08-27. Every one of these is loaded by URL from Pages by live apps, so an
+# unlinted syntax error ships to five of them inside the 10-minute cache. A glob cannot fall behind.
+# Same lesson as gxripple.sh's URL-loaded set the same week: do not encode WHICH files, encode WHAT
+# they are.
+for f in gx-*.js; do
   [ -f "$f" ] || continue
   if node --check "$f" 2>/dev/null; then echo "  ✓ $f — parses"
   else echo "  ✗ $f — SYNTAX ERROR"; node --check "$f" 2>&1 | head -3 | sed 's/^/      /'; FAIL=1; fi

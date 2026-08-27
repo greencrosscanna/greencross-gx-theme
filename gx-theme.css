@@ -491,3 +491,26 @@ html.gx-embedded .gx-bug-fab{display:none;}
   border-radius:50%;border:1px solid var(--gx-border-strong);background:var(--gx-surface-2);
   color:var(--gx-text);cursor:pointer;font-size:11px;}
 .gx-bug-shot-clear:hover{border-color:var(--gx-green-dim);color:var(--gx-green);}
+
+/* ── Update toast (gx-updatecheck.js) ──────────────────────────────────────────────────────────────
+   Ported from Sales 2026-08-27 with its layout intact, re-expressed in --gx-* tokens so it inherits
+   the shared palette instead of Sales' local --card-2/--green/--muted.
+
+   Bottom-anchored and full-width on a phone, because that is where a thumb is and the toast must not
+   cover content being read. It sits ABOVE a bottom bar on mobile (the 118px offset is Sales' bottom
+   nav plus the safe-area inset); an app without one simply has a toast a little higher than it needs
+   to be, which is the harmless direction to be wrong in. On a real pointer it becomes a corner card. */
+.gx-upd{position:fixed;left:12px;right:12px;bottom:calc(118px + env(safe-area-inset-bottom));z-index:400;
+  display:none;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+  background:var(--gx-surface-2);border:1px solid var(--gx-green-dim);
+  box-shadow:0 6px 20px rgba(0,0,0,.4);font-size:13px;color:var(--gx-text);}
+.gx-upd.show{display:flex;}
+.gx-upd-txt{flex:1;min-width:0;}
+.gx-upd-go{flex-shrink:0;border:none;border-radius:7px;padding:7px 12px;font-family:inherit;
+  font-size:13px;font-weight:600;background:var(--gx-green);color:var(--gx-green-ink);cursor:pointer;}
+.gx-upd-x{flex-shrink:0;border:none;background:none;color:var(--gx-text-mute);font-size:16px;
+  cursor:pointer;padding:0 2px;}
+.gx-upd-x:hover{color:var(--gx-text);}
+@media(min-width:768px) and (hover:hover) and (pointer:fine){
+  .gx-upd{left:auto;right:20px;bottom:20px;max-width:380px;}
+}

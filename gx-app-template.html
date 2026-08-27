@@ -188,6 +188,20 @@
     });
   </script>
 
+  <!-- Stale-build toast. Asks GX Core what the newest recorded release is and, if this tab is behind,
+       offers a reload — it never reloads on its own, because a reload mid-task on a phone loses your
+       scroll position. autoReload:true is for an unattended kiosk only, where nobody is there to
+       click. Opt-in like the rest: no init, no toast. -->
+  <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-updatecheck.js"></script>
+  <script>
+    GXUpdateCheck.init({
+      app:     '__APP_KEY__',
+      gxcore:  GXCORE_URL,
+      version: function () { return /* APP_VERSION */ ''; },
+      isAuthed: function () { return /* this app's session check, or omit */ true; },
+    });
+  </script>
+
   <!-- ?v=N is the single source of truth deploy.sh reads for the version. Bump on each ship. -->
   <script src="__APP_JS__?v=1"></script>
 </body>
