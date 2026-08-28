@@ -47,6 +47,24 @@ Served publicly via GitHub Pages so any app can import it with no build step:
   </script>
   ```
   (Master Control / GAS-served pages with a strict CSP should inline a copy instead of `<script src>`.)
+- `gx-maintenance.js` + `gx-maintenance.json` — the **maintenance gate**: the "out back" screen an app
+  shows when it is deliberately down, and the flag that turns it on. Wire it once per app and leave it:
+  ```html
+  <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-maintenance.js"></script>
+  <script>GXMaintenance.init({ app: 'inventory', appName: 'Inventory', gxcore: GXCORE_URL });</script>
+  ```
+  **Two levers gate independently, and either one is enough.** `gx-maintenance.json` in this repo is a
+  static file on Pages — commit + push, live in ~a minute, and it still works when GX Core is the thing
+  that is down, which is the likeliest reason anyone reaches for this at all. `cfg.maint.<app>` /
+  `cfg.maint.all` in GX Core `kv` is the instant lever, toggled from Master Control's Maintenance panel,
+  and needs Core up. **Turning the gate off means clearing both** — the cockpit panel says which one is
+  holding an app down, because "I unticked it and the app is still down" is otherwise unanswerable.
+
+  An explicit per-app entry beats `all` in *both* directions, so `{"all":true,"apps":{"crew":false}}`
+  takes the suite down and holds Crew up. Anything unreadable — a 404, malformed JSON, Core timing out —
+  counts as **up**, never down: this file is fetched on every load of every app, and failing closed would
+  turn a bad minute of GitHub's CDN into a suite-wide outage. `?gxmaint=on` previews the screen without
+  touching a flag and `?gxmaint=off` bypasses it for the session; neither is a security boundary.
 
 ## Spoke dev scaffolding (synced, not just runtime assets)
 Beyond runtime CSS/JS, this repo is also the **source of truth for the dev-time boilerplate** every

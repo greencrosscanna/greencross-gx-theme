@@ -1,0 +1,5 @@
+{
+  "_readme": "The maintenance kill-switch every GX app reads. Edit, commit, PUSH — it is live on the next app load. Set `all` to true to gate the whole suite, or an entry under `apps` (keys are GX Core app keys: core-admin, inventory, performance, sales, pricecards, spiff, crew) to gate one. An app entry may be `true`, `false`, or an object {on, since, lines, message}. AN APP ENTRY WINS OVER `all` IN BOTH DIRECTIONS: {\"all\":true,\"apps\":{\"crew\":false}} takes the suite down but holds crew up. `since` is TEXT, ISO, and seeds the down-timer so a refresh does not restart it at 00:00. This file is the lever that survives a GX Core outage; cfg.maint.* in GX Core kv is the instant one. EITHER gates, so turning it off means clearing BOTH. See the header of gx-maintenance.js.",
+  "all": false,
+  "apps": {}
+}

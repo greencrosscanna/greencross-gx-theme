@@ -202,6 +202,21 @@
     });
   </script>
 
+  <!-- Maintenance gate. Reads two independent flags — gx-maintenance.json on this repo's Pages, and
+       cfg.maint.<app> / cfg.maint.all in GX Core kv — and covers the app with the "out back" screen if
+       EITHER says so. Two sources because the outage it exists for is usually GX Core itself, and a
+       switch that lives only in Core is unreachable exactly then. It un-gates itself when both clear.
+       Unlike the toast above this is NOT opt-in-per-feature: wire it in every app, or the one app you
+       skipped is the one still showing a stack trace to a store. -->
+  <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-maintenance.js"></script>
+  <script>
+    GXMaintenance.init({
+      app:     '__APP_KEY__',
+      appName: '__APP_TITLE__',
+      gxcore:  GXCORE_URL,
+    });
+  </script>
+
   <!-- ?v=N is the single source of truth deploy.sh reads for the version. Bump on each ship. -->
   <script src="__APP_JS__?v=1"></script>
 </body>
