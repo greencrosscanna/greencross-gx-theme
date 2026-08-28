@@ -82,8 +82,12 @@ function load(opts) {
     },
     location: { href: 'https://greencrosscanna.github.io/app/', pathname: '/app/', hash: '',
                 replace(u) { win.__replaced = u; } },
-    setInterval: (fn, ms) => { intervals.push({ fn, ms }); return intervals.length; },
-    clearInterval: (id) => { if (id) intervals[id - 1] = null; },
+    /* REAL timers, recorded. They used to be inert stubs that only logged the call, which made §2b
+       impossible to write: whenClient() polls on setInterval, so a stub that never fires meant the
+       wait could never resolve and the test failed against correct code. process.exit at the end
+       clears the strays. */
+    setInterval: (fn, ms) => { const id = setInterval(fn, ms); intervals.push({ fn, ms, id }); return id; },
+    clearInterval: (id) => { clearInterval(id); },
     console: { warn() {} },
   }, opts);
   win.window = win;
@@ -160,6 +164,39 @@ const fetchBoom = () => () => Promise.reject(new Error('network'));
       await new Promise((r) => setTimeout(r, 0));
       ok(M.isGated(), 'the kv flag gates on its own when the Pages file is missing');
     }
+  }
+
+  console.log('\n2b. a DEFERRED gx-client.js must not silently kill the kv lever');
+  {
+    /* THE SALES BUG, 2026-08-28. Sales loads gx-client.js with `defer`, so GXClient does not exist
+       when init() runs its first check. fromCore() used to return null the instant GXClient was
+       missing, so the cockpit toggle did nothing on that app — and the Pages flag still worked, which
+       is exactly what hid it: the feature looked wired and half of it was dead. Sales patched around
+       it in its own index.html; this is the fix moved to where it belongs. */
+    const win = { GXClient: undefined };
+    const { M, win: w } = load({
+      fetch: fetch404(),
+      get GXClient() { return win.GXClient; },
+    });
+    M.init({ app: 'sales', gxcore: 'https://script.google.com/x/exec' });
+    await new Promise((r) => setTimeout(r, 5));
+    ok(!M.isGated(), 'with GXClient absent the app is up (fail-safe holds while it waits)');
+
+    // gx-client.js arrives late, exactly as `defer` delivers it.
+    w.GXClient = () => ({ jsonp: () => Promise.resolve({ ok: true, config: { 'cfg.maint.sales': 'true' } }) });
+    win.GXClient = w.GXClient;
+    await new Promise((r) => setTimeout(r, 400));
+    ok(M.isGated(), 'and the kv lever takes effect once it loads, with no per-app re-check needed');
+  }
+
+  console.log('\n2c. the file answer is not held hostage by a slow kv lever');
+  {
+    // A Promise.all over both sources would stall the gate for the whole GXClient wait — so an app
+    // that IS down keeps showing its broken self while we wait on a lever with nothing to say.
+    const { M } = load({ fetch: fetchOK({ all: true }), GXClient: undefined });
+    M.init({ app: 'inventory', gxcore: 'https://script.google.com/x/exec' });
+    await new Promise((r) => setTimeout(r, 20));
+    ok(M.isGated(), 'the Pages flag gates within ms even though GXClient never showed up');
   }
 
   console.log('\n3. scope — `all` covers the suite, an app entry covers one app, and only that one');

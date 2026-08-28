@@ -75,6 +75,8 @@
 
   var IDLE_MS   = 60 * 1000;   // re-check cadence while the app is up
   var GATED_MS  = 20 * 1000;   // …and while it is down, so it can clear itself
+  var CLIENT_WAIT_MS = 6000;   // how long to wait for a deferred gx-client.js before giving up
+  var CLIENT_POLL_MS = 100;
   var TICK_MS   = 1000;        // down-timer
   var LINE_MS   = 3400;        // console rotation
 
@@ -90,6 +92,9 @@
   var cfg = null, wired = false, gated = false, bypassed = false, forced = false;
   var checkedAt = 0, timers = [], startedAt = 0, lineIdx = 0, active = null;
   var prevTitle = null, prevOverflow = null, inerted = [];
+  /* The two sources are tracked SEPARATELY rather than reduced to one answer per check, because they
+     answer at very different speeds — see settle() and check(). */
+  var srcFile = null, srcCore = null, coreInFlight = false;
 
   /* Booleans are TEXT everywhere in this suite (a sheet round-trip turns true into 'TRUE' or 'true'
      or 1), so never compare === true.
@@ -147,8 +152,36 @@
       .catch(function () { return null; });
   }
 
+  /* WAIT FOR GXClient RATHER THAN GIVING UP ON IT.
+     This returned null the moment GXClient was missing, and that was a real bug, found by the Sales
+     chat while wiring this in: Sales loads gx-client.js with `defer`, so at init() time GXClient does
+     not exist yet — the kv lever was skipped on the first check and, since nothing re-checked until a
+     visibilitychange, the cockpit toggle silently did nothing on that app. The Pages flag still
+     worked, which is what made it invisible: the feature looked wired and half of it was dead.
+     Sales worked around it with its own DOMContentLoaded re-check. That workaround should not have to
+     be rediscovered by five more apps, so the wait belongs here. Harmless where GXClient is already
+     loaded (resolves synchronously) and bounded, so an app that never loads it is not held forever. */
+  function whenClient() {
+    if (typeof global.GXClient === 'function') return Promise.resolve(true);
+    return new Promise(function (resolve) {
+      var waited = 0;
+      var t = global.setInterval(function () {
+        if (typeof global.GXClient === 'function') { global.clearInterval(t); resolve(true); return; }
+        waited += CLIENT_POLL_MS;
+        if (waited >= CLIENT_WAIT_MS) { global.clearInterval(t); resolve(false); }
+      }, CLIENT_POLL_MS);
+    });
+  }
+
   function fromCore() {
-    if (!cfg.gxcore || typeof global.GXClient !== 'function') return Promise.resolve(null);
+    if (!cfg.gxcore) return Promise.resolve(null);
+    return whenClient().then(function (ready) {
+      if (!ready) return null;
+      return coreConfig();
+    });
+  }
+
+  function coreConfig() {
     return global.GXClient(cfg.gxcore).jsonp('config', {})
       .then(function (d) {
         var c = (d && d.ok && d.config) || null;
@@ -484,6 +517,13 @@
     }
   }
 
+  /* Either source gating is enough, so the LAST ANSWER FROM EACH is kept and re-reduced here rather
+     than waiting for both. That matters now that fromCore can wait several seconds for a deferred
+     GXClient: a Promise.all would have held the gate closed for the whole wait, so an app that is
+     down would keep showing its broken self while we waited on a lever that had nothing to say. The
+     file answers in milliseconds and applies immediately; core amends it when it arrives. */
+  function settle() { apply(srcFile || srcCore || null); }
+
   function check(force) {
     if (!cfg || bypassed) return Promise.resolve(false);
     if (forced) { apply({}); return Promise.resolve(true); }
@@ -491,10 +531,16 @@
     var wait = gated ? GATED_MS : IDLE_MS;
     if (!force && now - checkedAt < wait) return Promise.resolve(gated);
     checkedAt = now;
-    return Promise.all([fromFile(), fromCore()]).then(function (r) {
-      apply(r[0] || r[1] || null);
-      return gated;
-    });
+
+    var pf = fromFile().then(function (n) { srcFile = n; settle(); });
+    // One core check at a time: while whenClient is waiting, the boot check and a visibilitychange
+    // can otherwise stack several pollers on one missing GXClient.
+    var pc = coreInFlight ? Promise.resolve() : (function () {
+      coreInFlight = true;
+      return fromCore().then(function (n) { srcCore = n; coreInFlight = false; settle(); },
+                             function () { coreInFlight = false; });
+    })();
+    return Promise.all([pf, pc]).then(function () { return gated; });
   }
 
   function param(name) {
