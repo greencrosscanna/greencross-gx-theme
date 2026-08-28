@@ -137,5 +137,120 @@
     return pickerPromise;
   }
 
-  global.GXAvatar = { url: url, chip: chip, initials: initials, hatSvg: GC_HAT_SVG, loadPicker: loadPicker };
+  /* ─── openEditor — "change my avatar", once, for the whole suite ───────────────────────────────
+   *
+   * WHY THIS IS SHARED AND NOT SIX COPIES
+   * Until 2026-08-28 nobody could change their own face from the header. Only Crew and the Command
+   * Center could edit an avatar at all, because both have their own backend — set_avatar is
+   * secret-gated and a spoke FRONTEND has no secret, which is why login() hands back avatarConfig
+   * and why the other five apps could DISPLAY a face and never change one. GX Core's set_my_avatar
+   * (v238) closed that; this is the UI half, written once so the six apps that were about to grow
+   * their own overlay do not. That is the same duplication gx-avatar.js already exists to end.
+   *
+   * IT LIVES HERE, NOT IN gx-topnav.js, for two reasons: this file already owns loadPicker(), and
+   * all seven apps load it, whereas the menu is only one of the places a face gets edited.
+   *
+   * THE OVERLAY IS APPENDED TO document.body ON PURPOSE. Several apps re-render by replacing a
+   * container's innerHTML wholesale — including on the toast their own save fires — which would
+   * tear the picker out from under someone mid-edit. Mounting outside any app's render root makes
+   * that structurally impossible rather than a rule each app has to remember.
+   *
+   *   GXAvatar.openEditor({
+   *     name:    'Sky Pinnick',
+   *     seed:    '00',            // employee_number where you have it; see mount()'s note on seeds
+   *     config:  {...} || null,
+   *     token:   sess.token,      // used by the DEFAULT save
+   *     app:     'inventory',     // the app key — set_my_avatar re-checks the grant
+   *     save:    fn(cfg)          // optional: overrides the default transport entirely
+   *     onSaved: fn(cfg), onClose: fn()
+   *   });
+   *
+   * save() is overridable because the Command Center is not on GXClient — it IS the Apps Script
+   * project and calls google.script.run directly. Every other app wants the default.
+   */
+  var editorHost = null, editorHandle = null, editorKey = null;
+
+  function closeEditor() {
+    if (editorHandle) { try { editorHandle.destroy(); } catch (e) {} editorHandle = null; }
+    if (editorKey) { document.removeEventListener('keydown', editorKey); editorKey = null; }
+    if (editorHost && editorHost.parentNode) editorHost.parentNode.removeChild(editorHost);
+    editorHost = null;
+  }
+
+  /* The default transport: GX Core's token-gated set_my_avatar, over GXClient because the /exec
+     second hop 404s on ~6% of rapid calls -- a hand-rolled fetch here would reintroduce exactly the
+     flake gx-client.js exists to absorb.
+     Pass `client` (an existing GXClient instance -- every spoke already holds one) or `coreUrl`.
+
+     RETRIES ARE OPT-IN ON A WRITE, and gx-client.js asks you to name why a replay is a no-op before
+     passing a count. Here it is: setAvatar writes one field on one row to a value the caller already
+     computed, and re-sending the identical config produces the identical row. There is no
+     accumulate, no append and no sequence number, so a retry after a second-hop miss either lands
+     the same write or lands it twice with the same result. That is the whole justification -- if
+     this route ever grows a side effect, this number goes back to 0. */
+  function defaultSave(opts, cfg) {
+    var gx = opts.client ||
+             (opts.coreUrl && typeof global.GXClient === 'function' ? global.GXClient(opts.coreUrl) : null);
+    if (!gx) return Promise.reject(new Error('no save handler wired: pass save(), client or coreUrl'));
+    if (!opts.token || !opts.app) {
+      return Promise.reject(new Error('cannot save: this app did not pass a session token and app key'));
+    }
+    return gx.postJSON('set_my_avatar', {
+      token: opts.token, app: opts.app, config: cfg ? JSON.stringify(cfg) : ''
+    }, { retries: 3 }).then(function (r) {
+      if (!r || !r.ok) throw new Error((r && r.error) || 'could not save your avatar');
+      return r;
+    });
+  }
+
+  function openEditor(opts) {
+    opts = opts || {};
+    if (editorHost) return;                       // already open: a double-tap must not stack two
+    var doc = global.document;
+    if (!doc) return;
+
+    editorHost = doc.createElement('div');
+    editorHost.className = 'gx-ava-editor-back';
+    editorHost.setAttribute('style', 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.55);' +
+      'display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;');
+    editorHost.addEventListener('click', function (e) { if (e.target === editorHost) doClose(); });
+
+    var panel = doc.createElement('div');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('style', 'width:100%;max-width:900px;background:var(--gx-surface);' +
+      'border:1px solid var(--gx-border);border-radius:12px;box-shadow:0 28px 70px rgba(0,0,0,.6);overflow:hidden;');
+    panel.innerHTML = '<div style="padding:24px;font-size:13px;color:var(--gx-text-mute);">Loading the avatar builder…</div>';
+    editorHost.appendChild(panel);
+    doc.body.appendChild(editorHost);
+
+    editorKey = function (e) { if (e.key === 'Escape') doClose(); };
+    doc.addEventListener('keydown', editorKey);
+
+    function doClose() { closeEditor(); if (opts.onClose) { try { opts.onClose(); } catch (e) {} } }
+
+    loadPicker().then(function () {
+      if (!editorHost) return;                    // closed again while the fetch was still in flight
+      panel.innerHTML = '';
+      editorHandle = global.GXAvatarPicker.mount(panel, {
+        name:   opts.name || '',
+        seed:   (opts.config && opts.config.seed) || opts.seed || opts.name || '',
+        config: opts.config || null,
+        showLeaderboardPreview: false,   // that mock is a standings row; this is somebody's account
+        save:   function (cfg) { return opts.save ? opts.save(cfg) : defaultSave(opts, cfg); },
+        onSaved: function (cfg) { if (opts.onSaved) opts.onSaved(cfg); },
+        close:  doClose
+      });
+    }, function () {
+      if (!editorHost) return;
+      /* This file is fetched by URL from Pages. If the picker request failed, say so -- an empty
+         panel where an editor should be reads as a bug in whichever app you happen to be in. */
+      panel.innerHTML = '<div style="padding:24px;font-size:13px;color:var(--gx-text);">' +
+        'The avatar builder did not load (gx-avatar-picker.js from gx-theme). ' +
+        'Check your connection and try again.</div>';
+    });
+  }
+
+  global.GXAvatar = { url: url, chip: chip, initials: initials, hatSvg: GC_HAT_SVG, loadPicker: loadPicker,
+                      openEditor: openEditor, closeEditor: closeEditor };
 })(typeof window !== 'undefined' ? window : this);

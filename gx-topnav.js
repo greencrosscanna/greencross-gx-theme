@@ -70,6 +70,16 @@
             global.GXChangelog && global.GXChangelog.configured && global.GXChangelog.configured()) {
           global.GXChangelog.open();
         }
+
+        /* Avatar opens the shared builder, on the same "default, not override" terms as Version:
+           the app's event goes out first and preventDefault() keeps its own editor (Crew has one,
+           because Crew edits OTHER people's faces and this row is only ever your own).
+           wrap.__gxAvatarEdit is set by renderUser and is what makes the row exist at all -- see the
+           note there on why this is opt-in. */
+        if (action === 'avatar' && wanted && wrap.__gxAvatarEdit &&
+            global.GXAvatar && global.GXAvatar.openEditor) {
+          global.GXAvatar.openEditor(wrap.__gxAvatarEdit);
+        }
       });
     });
 
@@ -101,6 +111,12 @@
      Adding a menu item later is one line of config here, not new markup in the app:
        GXTopNav.renderUser(slot, {
          name: 'Sky Pinnick', role: 'admin', avatar: GXAvatar.chip(cfg, name),
+         // OPTIONAL. Present => an "Avatar" row appears and opens the shared builder; absent =>
+         // no row, nothing changes. token+app drive GX Core's set_my_avatar (v238); client is any
+         // GXClient instance the app already holds. Pass save() instead to use your own transport.
+         avatarEdit: { token: sess.token, app: 'inventory', client: GX,
+                       seed: sess.employeeNumber, config: cfg,
+                       onSaved: function (c) { cfg = c; paintUserTray(); } },
          items: [ {action:'settings', label:'Settings'},
                   {action:'version',  label:'Version', value: 'v18'},
                   {action:'logout',   label:'Sign out', danger: true} ]
@@ -125,7 +141,22 @@
       return String(v == null ? '' : v)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     };
-    var rows = (opts.items || []).map(function (it) {
+    /* ── THE AVATAR ROW IS OPT-IN, AND THAT IS THE POINT ────────────────────────────────────────
+       Pass avatarEdit and the row appears; omit it and this file behaves exactly as it did before.
+       That is not timidity about a shared component -- it is the SPIFF gear lesson two paragraphs
+       down, applied before the fact. Until an app supplies a way to SAVE (a token + app key for the
+       default set_my_avatar transport, or its own save()), an Avatar row would open an editor whose
+       Save button could not work. A control that looks functional and is not is worse than no
+       control, and this file reaches six live apps inside a ten-minute cache -- so it must be inert
+       on arrival and light up only where somebody wired it deliberately.
+
+       It sits ABOVE Settings: it is the one row that changes YOU rather than the app, and it is
+       reached from the chip it edits. The canonical order below governs the shared slots. */
+    var items = (opts.items || []).slice();
+    if (opts.avatarEdit && !items.some(function (it) { return it.action === 'avatar'; })) {
+      items.unshift({ action: 'avatar', label: opts.avatarEdit.label || 'Avatar' });
+    }
+    var rows = items.map(function (it) {
       var value = it.value ? '<span class="gx-user-ver">' + esc(it.value) + '</span>' : '';
       var cls = 'gx-user-item' + (it.danger ? ' is-danger' : '');
       // no action -> a static info row, not a button: it must not look clickable
@@ -145,6 +176,12 @@
           rows +
         '</div>' +
       '</div>';
+    /* Stashed on the element rather than closed over, because init() wires the menu once per wrap
+       and every later repaint replaces this node -- the handler must read the CURRENT options, not
+       whichever set happened to be live when it was first bound. Set before init() so a click can
+       never arrive ahead of it. */
+    var wrap = slot.querySelector('.gx-user');
+    if (wrap) wrap.__gxAvatarEdit = opts.avatarEdit ? Object.assign({ name: opts.name }, opts.avatarEdit) : null;
     init(slot);
     return slot.querySelector('.gx-user-btn');
   }
