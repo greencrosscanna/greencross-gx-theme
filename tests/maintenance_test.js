@@ -334,6 +334,53 @@ const fetchBoom = () => () => Promise.reject(new Error('network'));
     ok(doc.title === 'App', 'the tab title is restored, not left saying BRB');
   }
 
+  console.log("\n9b. tone:'neutral' — the variant an OUTSIDE party sees (SPIFF's vendor page)");
+  {
+    const body = { all: true, apps: {} };
+    const { M, doc, byId } = load({ fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve(body) }) });
+    M.init({ app: 'spiff', appName: 'SPIFF', tone: 'neutral' });
+    await new Promise((r) => setTimeout(r, 0));
+    const html = byId['gx-maint'].innerHTML;
+
+    // The whole point of the variant: none of the in-house voice reaches a vendor.
+    ok(html.indexOf('Fatty') === -1,      'no Fatty');
+    ok(html.indexOf('4') === -1 || html.indexOf('gx-maint-clock') === -1, 'no 4:20 clock');
+    ok(html.indexOf('gx-maint-smoke') === -1, 'no smoke field');
+    ok(html.indexOf('Out back') === -1,   'the status chip does not say Out back');
+    ok(html.indexOf('BRB') === -1,        'and it does not sign off BRB');
+    ok(doc.title.indexOf('BRB') === -1,   'nor does the tab title');
+
+    // A vendor must not be handed the internal bug reporter: it files to the staff board with a
+    // context snapshot attached.
+    ok(html.indexOf('gx-maint-poke') === -1, 'the poke button is absent');
+    ok(!!byId['gx-maint-go'],                'but Try again is still there');
+
+    // Everything load-bearing survives the tone switch.
+    ok(html.indexOf('SPIFF') > 0,           'appName still labels it');
+    ok(html.indexOf('gx-maint-el') > 0,     'the elapsed timer survives');
+    ok(html.indexOf('Green Cross') > 0,     'it is still visibly us');
+
+  }
+
+  console.log("\n9c. the default tone is UNCHANGED — the variant must not leak into staff apps");
+  {
+    let body = { all: true, apps: {} };
+    const { M, doc, byId } = load({ fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve(body) }) });
+    M.init({ app: 'spiff', appName: 'SPIFF' });          // no tone: the in-house screen
+    await new Promise((r) => setTimeout(r, 0));
+    const html = byId['gx-maint'].innerHTML;
+    ok(html.indexOf("smokin' a Fatty") > 0, 'staff still get the out-back screen, capital F intact');
+    ok(html.indexOf('gx-maint-clock') > 0,  'the 4:20 clock is still there');
+    ok((html.match(/gx-maint-rad/g) || []).length === 8, 'and all 8 smoke plumes');
+    ok(!!byId['gx-maint-poke'],             'poke the tech team is still offered to staff');
+    ok(doc.title === 'BRB — Green Cross',   'and the tab still says BRB');
+
+    // Un-gating must work identically whichever tone rendered it.
+    body = { all: false, apps: {} };
+    await M.check(true);
+    ok(!M.isGated() && !byId['gx-maint'], 'it still tears itself down when the flag clears');
+  }
+
   console.log('\n10. the shipped flag file and the template wiring');
   {
     const raw = fs.readFileSync(path.join(ROOT, 'gx-maintenance.json'), 'utf8');

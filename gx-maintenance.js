@@ -60,7 +60,27 @@
  *     app:     'inventory',          // GX Core app key — 'performance' for Leaderboard
  *     appName: 'Inventory',          // optional display label; defaults to a title-cased app key
  *     gxcore:  GXCORE_URL,           // optional — omit and only the Pages flag is read
+ *     tone:    'neutral',            // optional — see below. Omit for the in-house screen.
  *   });
+ *
+ * ── TONE, AND WHEN TO REACH FOR IT ───────────────────────────────────────────────────────────────
+ * Default: the out-back screen. Right for every STAFF-facing page.
+ *
+ * tone:'neutral' is for a page an OUTSIDE party opens — SPIFF's client.html, the vendor proposal a
+ * rep opens from a link Tawny emails, is the first. Same gate, same levers, same automatic
+ * un-gating; it drops the 4:20 clock, the smoke, the joke and the poke button, and says plainly
+ * that the page is temporarily unavailable.
+ *
+ * The reasoning, so a later pass does not "simplify" this back to one screen (Sky's call, 2026-08-29):
+ * the out-back screen is on-brand internally and reads as unserious to a vendor who is being asked
+ * for a credit against an order. The alternative considered was leaving vendor pages ungated, but a
+ * vendor hitting a dead link during an outage gets a broken page instead of an explanation, which is
+ * worse. Neutral is the middle: they learn what is happening, in a voice meant for them.
+ *
+ * The poke button is omitted rather than restyled — it opens gx-bugreport, which files onto the
+ * internal board with a context snapshot attached. That is not a thing to hand a vendor.
+ *
+ * RULE OF THUMB: if someone outside Green Cross can reach the page, pass tone:'neutral'.
  *
  * Nothing else is required. No CSS to add: the stylesheet is injected on activation, so an app that
  * never goes down pays one same-origin fetch of a ~120-byte JSON per load and nothing else.
@@ -79,6 +99,15 @@
   var CLIENT_POLL_MS = 100;
   var TICK_MS   = 1000;        // down-timer
   var LINE_MS   = 3400;        // console rotation
+
+  /* Sober status lines for tone:'neutral'. No jokes, no first person, nothing that reads as an
+     in-house voice — an outside party is being told why a page they were sent does not work. */
+  var NEUTRAL_LINES = [
+    'applying a scheduled update…',
+    'restoring service…',
+    'verifying data integrity…',
+    'almost done.',
+  ];
 
   var DEFAULT_LINES = [
     'rolling back the last deploy…',
@@ -351,10 +380,25 @@
     }
 
     var label = cfg.appName || titleCase(cfg.app);
+    /* TONE. 'neutral' is for pages an OUTSIDE party opens — SPIFF's vendor proposal page is the
+       first. The out-back screen is on-brand internally and reads as unserious to a vendor who is
+       being asked for a credit against an order. Sky's call, 2026-08-29: gate outward-facing pages,
+       but with a sober variant rather than leaving them to fail as a dead link.
+       Everything load-bearing is identical in both tones — the status card, the elapsed timer and
+       the automatic un-gating. Only the voice and the ornament change. */
+    var neutral = String(cfg.tone || '').toLowerCase() === 'neutral';
     var body  = notice && notice.message
       ? esc(notice.message)
-      : "Something went sideways, so we took it apart. It'll be back up before the munchies hit. " +
-        'Nothing you did caused this and nothing you typed was lost.';
+      : neutral
+        ? 'This page is temporarily unavailable while we carry out maintenance. It will come back on '
+          + 'its own — no need to reload, and nothing you submitted has been lost.'
+        : "Something went sideways, so we took it apart. It'll be back up before the munchies hit. " +
+          'Nothing you did caused this and nothing you typed was lost.';
+    var headline = neutral
+      ? esc(label) + ' is temporarily unavailable'
+      : "It must be 4:20 — the Tech Team is out back smokin' a Fatty.";
+    var statusWord = neutral ? 'Offline' : 'Out back';
+    var signature  = neutral ? 'Thanks for your patience. — Green Cross' : 'BRB. — Green Cross Tech';
 
     var wrap = doc.createElement('div');
     wrap.id = 'gx-maint';
@@ -370,15 +414,16 @@
             '<span class="gx-maint-cap">' + esc(label) + '</span>' +
             '<span class="gx-maint-sep" aria-hidden="true"></span>' +
             '<span class="gx-maint-cap gx-maint-out">' +
-              '<span class="gx-maint-dot gx-maint-dot-gold" aria-hidden="true"></span>Out back</span>' +
+              '<span class="gx-maint-dot gx-maint-dot-gold" aria-hidden="true"></span>' + statusWord + '</span>' +
           '</div>' +
         '</div>' +
-        '<div class="gx-maint-clock" aria-hidden="true">' +
-          '<span>4</span><span class="gx-maint-colon">:</span><span>20</span>' +
-          '<span class="gx-maint-pm">PM</span>' +
-        '</div>' +
+        (neutral ? '' :
+          '<div class="gx-maint-clock" aria-hidden="true">' +
+            '<span>4</span><span class="gx-maint-colon">:</span><span>20</span>' +
+            '<span class="gx-maint-pm">PM</span>' +
+          '</div>') +
         '<div class="gx-maint-say">' +
-          "<h1>It must be 4:20 — the Tech Team is out back smokin' a Fatty.</h1>" +
+          '<h1>' + headline + '</h1>' +
           '<p>' + body + '</p>' +
         '</div>' +
         '<div class="gx-maint-card">' +
@@ -398,20 +443,28 @@
           '</div>' +
         '</div>' +
         '<div class="gx-maint-acts">' +
-          '<button type="button" class="gx-maint-go" id="gx-maint-go">Check if they\'re back</button>' +
-          '<button type="button" class="gx-maint-poke" id="gx-maint-poke">Poke the tech team</button>' +
+          '<button type="button" class="gx-maint-go" id="gx-maint-go">' +
+            (neutral ? 'Try again' : 'Check if they\'re back') + '</button>' +
+          /* Neutral deliberately omits the poke button. It opens gx-bugreport, which files to the
+             internal board WITH a context snapshot — route, filters, viewport, last console error.
+             An outside vendor should not be filing onto a staff board, and their words landing
+             there attributed to nobody is worse than no button. */
+          (neutral ? '' :
+            '<button type="button" class="gx-maint-poke" id="gx-maint-poke">Poke the tech team</button>') +
         '</div>' +
-        '<div class="gx-maint-sig">BRB. — Green Cross Tech</div>' +
+        '<div class="gx-maint-sig">' + signature + '</div>' +
       '</div>' +
-      '<div class="gx-maint-smoke" aria-hidden="true">' + smoke() + '</div>';
+      (neutral ? '' : '<div class="gx-maint-smoke" aria-hidden="true">' + smoke() + '</div>');
 
     doc.body.appendChild(wrap);
     active = wrap;
 
     doc.getElementById('gx-maint-go').addEventListener('click', retry);
-    doc.getElementById('gx-maint-poke').addEventListener('click', pokeTechTeam);
+    var pokeBtn = doc.getElementById('gx-maint-poke');   // absent in neutral tone
+    if (pokeBtn) pokeBtn.addEventListener('click', pokeTechTeam);
 
-    var lines = (notice && notice.lines && notice.lines.length) ? notice.lines : DEFAULT_LINES;
+    var lines = (notice && notice.lines && notice.lines.length) ? notice.lines
+              : (neutral ? NEUTRAL_LINES : DEFAULT_LINES);
     lineIdx = 0;
     paintLine(lines);
 
@@ -438,7 +491,8 @@
     prevOverflow = doc.documentElement.style.overflow;
     doc.documentElement.style.overflow = 'hidden';
     prevTitle = doc.title;
-    doc.title = 'BRB — Green Cross';
+    doc.title = (String(cfg && cfg.tone || '').toLowerCase() === 'neutral')
+      ? 'Temporarily unavailable — Green Cross' : 'BRB — Green Cross';
     inerted = [];
     Array.prototype.slice.call(doc.body.children).forEach(function (n) {
       if (n === keep || n.id === 'gxBugOverlay' || n.id === 'gxBugFab') return;
