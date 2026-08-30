@@ -1,0 +1,113 @@
+# ─── gx-theme — tests on every push and PR ───────────────────────────────────────────────────────
+#
+# WHY THIS EXISTS, AND WHY IT IS LATE.
+# This is the repo with the widest blast radius in the suite. Five apps load gx-theme.css,
+# gx-client.js, gx-topnav.js, gx-avatar.js, gx-session.js and gx-stores.js LIVE from GitHub Pages.
+# There is no deploy, no version pin and no review between a push here and every app serving it on
+# the next load, inside a ten-minute cache.
+#
+# It was also, until 2026-08-30, the ONLY repo in the suite with no CI. Its 422 assertions ran solely
+# in a local pre-push hook: one machine, and `git push --no-verify` walked past it leaving no trace.
+# Seven other repos had this from 2026-08-23.
+#
+# THE HONEST PART — READ BEFORE TRUSTING A GREEN TICK.
+# Seven suites here read SIBLING repos and SKIP when the sibling is absent:
+#   app_template_drift, commands_reality, bugreport, updatecheck,
+#   postjson_handoff_contract, deploy_version, maintenance
+# Skipping is right locally and a TRAP in CI, where a green check would quietly mean "we ran the
+# handful that need nothing." So every public sibling is checked out below, and what could NOT be
+# covered is stated loudly in the job summary.
+#
+# greencross-command-center is PRIVATE, so actions/checkout cannot reach it with the default
+# GITHUB_TOKEN — that token is scoped to this repository. Two suites (deploy_version's server-side
+# rule, maintenance's gxTruthy_ pin) therefore SKIP here and are covered by the hub's own CI instead,
+# which has the hub by definition. That is a deliberate choice not to create a cross-repo PAT: a
+# long-lived secret with read access to the private hub, sitting in a public repo's settings, buys
+# less than it risks when the hub already runs those checks itself.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out gx-theme
+        uses: actions/checkout@v4
+        with:
+          path: greencross-gx-theme
+
+      # The six PUBLIC spokes. No token needed and none wanted.
+      - uses: actions/checkout@v4
+        with: { repository: greencrosscanna/greencross-inventory,   path: greencross-inventory }
+      - uses: actions/checkout@v4
+        with: { repository: greencrosscanna/greencross-leaderboard, path: greencross-leaderboard }
+      - uses: actions/checkout@v4
+        with: { repository: greencrosscanna/greencross-sales,       path: greencross-sales }
+      - uses: actions/checkout@v4
+        with: { repository: greencrosscanna/greencross-crew,        path: greencross-crew }
+      - uses: actions/checkout@v4
+        with: { repository: greencrosscanna/greencross-spiff,       path: greencross-spiff }
+      - uses: actions/checkout@v4
+        with: { repository: greencrosscanna/greencross-price-cards, path: greencross-price-cards }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The SAME script the pre-push hook runs, not a reimplementation. A second copy of the gate
+      # drifts from the real one and starts disagreeing with local results, which is how people learn
+      # to distrust CI.
+      #
+      # bash, NOT sh. theme-preflight.sh is #!/bin/sh but relies on constructs macOS /bin/sh accepts
+      # as bash-in-posix-mode and Ubuntu's dash does not. The hub's workflow learned this the hard
+      # way on its very first run: `set: Illegal option -o pipefail`, a bug that could not be
+      # expressed on the machine that wrote it.
+      - name: Run the gate
+        working-directory: greencross-gx-theme
+        run: bash ./theme-preflight.sh
+
+      # Say what was NOT covered. A green check that quietly skipped the cross-repo suites is exactly
+      # the failure this suite spent two weeks removing — and the hub's version of this step had the
+      # bug it exists to prevent, inferring "siblings present" from a single directory.
+      - name: Report coverage honestly
+        if: always()
+        working-directory: greencross-gx-theme
+        run: |
+          {
+            echo "### Coverage"
+            echo ""
+            for t in tests/*_test.js; do
+              out="$(node "$t" 2>&1 || true)"
+              n="$(printf '%s' "$out" | grep -c '  SKIP  ' || true)"
+              if [ "${n:-0}" -gt 0 ]; then
+                echo "- ⚠️ \`$t\` — ran, with **$n skipped** check(s)"
+              else
+                echo "- ✅ \`$t\` — $(printf '%s' "$out" | tail -1)"
+              fi
+            done
+            echo ""
+            missing=""
+            for r in greencross-inventory greencross-leaderboard greencross-sales \
+                     greencross-crew greencross-spiff greencross-price-cards; do
+              [ -d "../$r" ] || missing="$missing $r"
+            done
+            if [ -n "$missing" ]; then
+              echo "> **Public siblings absent:**$missing"
+              echo "> They need no token, so this means a checkout step failed — not that coverage"
+              echo "> is optional. Do not read this run as green."
+            else
+              echo "All six public spokes present — the cross-repo suites genuinely ran here."
+            fi
+            echo ""
+            echo "> \`greencross-command-center\` is private and is deliberately NOT checked out."
+            echo "> The two suites that need it skip their hub-side rule here; the hub's own CI runs"
+            echo "> them. This is a choice not to put a long-lived cross-repo PAT in a public repo."
+          } >> "$GITHUB_STEP_SUMMARY"

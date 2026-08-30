@@ -164,13 +164,105 @@ if [ -f vendor/verify.sh ]; then
   fi
 fi
 
+# -- credential literals -------------------------------------------------------------------------
+# THE REPO THAT SHIPS THIS CHECK DID NOT RUN IT. gx-preflight.sh carries a credential scan and is
+# synced into all six spokes; theme-preflight.sh, which guards gx-theme itself, had no equivalent --
+# so the one public repo whose files five live apps load by URL was the one nobody scanned.
+#
+# It matters because of what the scan was written for: six live Dutchie POS keys sat in the PUBLIC
+# greencross-leaderboard repo for 101 days. A real redaction pass in June found the original and
+# missed a copy made twelve days earlier, because it greped the file it remembered instead of the
+# tree. Bare 32-hex keys carry no provider prefix, so GitHub secret scanning does not catch them
+# under its default settings either.
+#
+# Byte-identical to the block in gx-preflight.sh, and tests/preflight_scan_parity_test.js fails if
+# the two ever drift. Duplicated rather than shared because a shared file would have to join the
+# gx-sync set in every spoke; asserting the copies match buys the same safety for one test.
+echo "  scanning for credential literals..."
+_secrets="$(python3 - <<'PYEOF'
+import re, subprocess, os
+try:
+    files = [f for f in subprocess.run(['git','ls-files'], capture_output=True, text=True).stdout.split(chr(10)) if f]
+except Exception:
+    raise SystemExit(0)
+SKIP = {'gx-preflight.sh'}
+# Vendored third-party bundles. A minified library is full of 32-hex runs that are not secrets --
+# vendor/xlsx@0.18.5/xlsx.full.min.js in gx-theme produces three -- and a scan that cries wolf on
+# code nobody wrote gets switched off, which is worse than not having it. Narrow on purpose: it skips
+# vendor/ and .min.js, NOT whole file types, so a real key in real source is still caught.
+#
+# NO LONE APOSTROPHES ANYWHERE IN THIS HEREDOC. It sits inside a command substitution, and the shell
+# scans that for the matching paren while tracking quotes -- so a single unbalanced quote character
+# in a PYTHON COMMENT desyncs it and the whole gate dies with "unexpected EOF while looking for
+# matching )". Cost twenty minutes on 2026-08-30, twice: once in a comment about the vendor skip, and
+# again in the comment warning about it. Write "does not", never the contraction or the possessive.
+def vendored(p):
+    parts = p.split('/')
+    return 'vendor' in parts or 'vendors' in parts or 'third_party' in parts or p.endswith('.min.js')
+HEX32 = re.compile(r'\b[0-9a-f]{32}\b')
+Q = chr(39) + chr(34)
+ASSIGN = re.compile(r'(?i)(api[_-]?key|secret|token|password|passwd|credential)\s*[:=]\s*[' + Q + r']([A-Za-z0-9_\-]{20,})[' + Q + r']')
+def randomish(v):
+    return any(c.isdigit() for c in v) and any(c.islower() for c in v)
+out = []
+for f in files:
+    if f in SKIP or vendored(f) or not os.path.isfile(f):
+        continue
+    try:
+        txt = open(f, encoding='utf-8', errors='ignore').read()
+    except Exception:
+        continue
+    if chr(0) in txt[:4096]:
+        continue
+    for n, line in enumerate(txt.split(chr(10)), 1):
+        if '@notasecret' in line:
+            continue
+        if HEX32.search(line):
+            out.append(f + ':' + str(n) + ': 32-hex literal (Dutchie POS key shape)')
+            continue
+        m = ASSIGN.search(line)
+        if m and randomish(m.group(2)):
+            out.append(f + ':' + str(n) + ': ' + m.group(1) + ' assigned a literal secret')
+print(chr(10).join(out[:40]))
+PYEOF
+)"
+if [ -n "$_secrets" ]; then
+  echo "  X credential literal in a tracked file -- rotate it, then move it to Script Properties:"
+  printf '%s\n' "$_secrets" | sed 's/^/      /'
+  FAIL=1
+else
+  echo "  OK no credential literals in tracked files"
+fi
+
 # ── tests ────────────────────────────────────────────────────────────────────────────────────────
 # The parse checks above prove these files are syntactically valid JS. They cannot prove the shared
 # layer still BEHAVES — and this repo is loaded live from Pages by five apps, so a behavioural
 # regression here ships to all of them with no deploy and no review in between. Anything with a test
 # gets it run on the way out.
-if ls tests/*_test.js >/dev/null 2>&1; then
-  for t in tests/*_test.js; do
+# JUDGE THE COMMIT, NOT THE DESK. Same change gx-preflight.sh got on 2026-08-30, and this repo has
+# the least excuse to skip it: five apps load these files live from Pages, so what HEAD contains is
+# what production gets, working tree or not. A clean tree needs no worktree. The worktree is a
+# SIBLING because seven suites here read ../greencross-<app>, and a /tmp worktree would resolve that
+# to nothing and turn every cross-repo check into a silent skip.
+_rundir="."
+_wt=""
+_scope="working tree"
+if [ -n "$(git status --porcelain 2>/dev/null || true)" ]; then
+  _sha="$(git rev-parse HEAD 2>/dev/null || true)"
+  _wt="../.gxthemepreflight-$$"
+  if [ -n "$_sha" ] && git worktree add --detach "$_wt" "$_sha" >/dev/null 2>&1; then
+    _rundir="$_wt"
+    _scope="HEAD $(printf '%s' "$_sha" | cut -c1-8) — tree is dirty, so this is what a push sends"
+    trap 'git worktree remove --force "$_wt" >/dev/null 2>&1 || true' EXIT INT TERM
+  else
+    _wt=""
+    echo "  ! could not create a worktree at HEAD — tests ran against the WORKING TREE, which is NOT"
+    echo "    what is being pushed. Treat a pass here as unproven."
+  fi
+fi
+if ls "$_rundir"/tests/*_test.js >/dev/null 2>&1; then
+  echo "  tests run against: $_scope"
+  for t in $(cd "$_rundir" && ls tests/*_test.js); do
     # `if out="$(...)"` and NOT `out=...` followed by `[ $? -eq 0 ]`. Under the `set -eu` at the top,
     # a failing assignment aborts the script THERE — so the ✗ branch, FAIL=1 and the PUSH BLOCKED
     # message below were all unreachable, and a failing test blocked the push while printing nothing
@@ -179,7 +271,7 @@ if ls tests/*_test.js >/dev/null 2>&1; then
     # `sh -x`. A gate that blocks silently teaches people to reach for --no-verify.
     # An assignment inside an `if` condition is exempt from errexit, which is why this form works —
     # it is the form gx-preflight.sh and the hub's run-tests.sh already use.
-    if out="$(node "$t" 2>&1)"; then
+    if out="$(cd "$_rundir" && node "$t" 2>&1)"; then
       echo "  ✓ $t — $(echo "$out" | grep -Eo '[0-9]+ passed, [0-9]+ failed' | tail -1)"
     else
       echo "  ✗ $t"
@@ -192,6 +284,10 @@ if ls tests/*_test.js >/dev/null 2>&1; then
       FAIL=1
     fi
   done
+fi
+if [ -n "$_wt" ]; then
+  git worktree remove --force "$_wt" >/dev/null 2>&1 || true
+  trap - EXIT INT TERM
 fi
 
 if [ "$FAIL" = "1" ]; then
