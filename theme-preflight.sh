@@ -194,7 +194,7 @@ SKIP = {'gx-preflight.sh'}
 # NO LONE APOSTROPHES ANYWHERE IN THIS HEREDOC. It sits inside a command substitution, and the shell
 # scans that for the matching paren while tracking quotes -- so a single unbalanced quote character
 # in a PYTHON COMMENT desyncs it and the whole gate dies with "unexpected EOF while looking for
-# matching )". Cost twenty minutes on 2026-08-30, twice: once in a comment about the vendor skip, and
+# matching )". Cost twenty minutes on 2026-08-29, twice: once in a comment about the vendor skip, and
 # again in the comment warning about it. Write "does not", never the contraction or the possessive.
 def vendored(p):
     parts = p.split('/')
@@ -239,7 +239,7 @@ fi
 # layer still BEHAVES — and this repo is loaded live from Pages by five apps, so a behavioural
 # regression here ships to all of them with no deploy and no review in between. Anything with a test
 # gets it run on the way out.
-# JUDGE THE COMMIT, NOT THE DESK. Same change gx-preflight.sh got on 2026-08-30, and this repo has
+# JUDGE THE COMMIT, NOT THE DESK. Same change gx-preflight.sh got on 2026-08-29, and this repo has
 # the least excuse to skip it: five apps load these files live from Pages, so what HEAD contains is
 # what production gets, working tree or not. A clean tree needs no worktree. The worktree is a
 # SIBLING because seven suites here read ../greencross-<app>, and a /tmp worktree would resolve that

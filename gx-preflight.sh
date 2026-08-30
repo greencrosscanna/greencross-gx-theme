@@ -81,7 +81,7 @@ SKIP = {'gx-preflight.sh'}
 # NO LONE APOSTROPHES ANYWHERE IN THIS HEREDOC. It sits inside a command substitution, and the shell
 # scans that for the matching paren while tracking quotes -- so a single unbalanced quote character
 # in a PYTHON COMMENT desyncs it and the whole gate dies with "unexpected EOF while looking for
-# matching )". Cost twenty minutes on 2026-08-30, twice: once in a comment about the vendor skip, and
+# matching )". Cost twenty minutes on 2026-08-29, twice: once in a comment about the vendor skip, and
 # again in the comment warning about it. Write "does not", never the contraction or the possessive.
 def vendored(p):
     parts = p.split('/')

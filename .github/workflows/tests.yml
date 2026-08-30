@@ -6,7 +6,7 @@
 # There is no deploy, no version pin and no review between a push here and every app serving it on
 # the next load, inside a ten-minute cache.
 #
-# It was also, until 2026-08-30, the ONLY repo in the suite with no CI. Its 422 assertions ran solely
+# It was also, until 2026-08-29, the ONLY repo in the suite with no CI. Its 422 assertions ran solely
 # in a local pre-push hook: one machine, and `git push --no-verify` walked past it leaving no trace.
 # Seven other repos had this from 2026-08-23.
 #

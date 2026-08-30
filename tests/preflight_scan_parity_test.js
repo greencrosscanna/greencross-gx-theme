@@ -14,7 +14,7 @@
  * every spoke, which is a much wider change than the hole justifies. So: duplicate deliberately, and
  * make drift a test failure. That is cheap and it cannot rot silently.
  *
- * THE OTHER THING THIS GUARDS, which cost real time on 2026-08-30:
+ * THE OTHER THING THIS GUARDS, which cost real time on 2026-08-29:
  * The block sits inside a command substitution. The shell scans that for its matching paren while
  * tracking quote state, so ONE unbalanced apostrophe anywhere in the heredoc — including inside a
  * Python comment — desyncs the scan and the entire gate dies with "unexpected EOF while looking for
