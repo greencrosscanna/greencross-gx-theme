@@ -110,7 +110,12 @@ list — no code change needed. Roles are enforced at the app login, not the dat
 
 ## Hard rules (learned the hard way — do not relearn them)
 - **Dates in sheets are stored as TEXT**, never Date objects (a sheet/script timezone mismatch
-  shifts coerced dates by a day and corrupts everything).
+  shifts coerced dates by a day and corrupts everything). This rule used to stop there, which is
+  why it was possible to obey it and still be wrong — it said how to STORE a date and never how to
+  COMPUTE one:
+
+<!-- @include _date-rule.md -->
+
 - **One sheet per app + retention caps** on any append-only/history table — a Google Sheet dies
   at 10,000,000 cells. Never let a history table grow unbounded.
 - **Serialize writes** to a shared cursor/table — concurrent runs race and skip data.

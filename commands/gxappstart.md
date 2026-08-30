@@ -15,6 +15,9 @@ Optional app-name hint from the user: "$ARGUMENTS".
   (SessionStart hook, `deploy.sh`) are pulled from gx-theme via **`gx-sync.sh`**, filled from `.gx_app`.
 - GX Core URL:
   <!-- @include _gxcore.md -->
+
+<!-- @include _date-rule.md -->
+
 - gx-theme Pages base: `https://greencrosscanna.github.io/greencross-gx-theme`
 
 ## Ground rules
