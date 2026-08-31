@@ -16,7 +16,7 @@ already fetched the row the id came from, so read its title out of the same resp
 the key. If you somehow only hold an id, look it up — `dev_queue`, `bug_reports`, `list_notes` — before
 you put it in front of me.
 
-**Summarise the text when it's long; that is the point, not verbatim quoting.** A to-do that reads
+**Summarize the text when it's long; that is the point, not verbatim quoting.** A to-do that reads
 "Add an email column to the employees tab so apps can notify staff about schedule changes" is *"the
 employee email column"* in a status line, with the full text available if I ask. Short-and-recognizable
 beats long-and-exact; what it must never be is the key.

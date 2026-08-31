@@ -14,7 +14,7 @@
 > `.gx-btn-green` or `.gx-input` wins for that app and silently diverges from the other five — which is
 > how the suite ended up with six different login screens.
 >
-> `theme-preflight.sh` blocks broken pushes; it cannot tell an authorised change from an unauthorised
+> `theme-preflight.sh` blocks broken pushes; it cannot tell an authorized change from an unauthorized
 > one. That part is convention.
 
 

@@ -69,5 +69,5 @@ a stale one.
 happened to type. Editing a rule in one file and not the other is exactly the failure the partials remove.
 
 To change a shared rule: edit the partial, commit, push, re-run the installer. To change one command's own
-behaviour: edit that command. If you find yourself pasting the same paragraph into a second command, it
+behavior: edit that command. If you find yourself pasting the same paragraph into a second command, it
 wants to be a partial.
