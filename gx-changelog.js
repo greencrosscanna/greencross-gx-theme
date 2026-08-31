@@ -85,7 +85,7 @@
   /* true when a is newer than b. Compares each dot-segment NUMERICALLY, so it is correct even
      across the width change: 'v1.280' (1,280) beats 'v1.28' (1,28). That comparison is exactly what
      the fixed 3-digit build in gx_core.gs exists to make reliable — as plain strings 'v1.28' sorts
-     ABOVE 'v1.280', which is the wrong answer and was the live behaviour before padding. */
+     ABOVE 'v1.280', which is the wrong answer and was the live behavior before padding. */
   function verGt(a, b) {
     function parse(x) {
       return String(x || '').replace(/^v/i, '').split('.').map(function (n) { return parseInt(n, 10) || 0; });

@@ -5,7 +5,7 @@
  * WHY THIS EXISTS, and why it is worth a whole suite for five PNGs.
  * iOS DISCARDS the alpha channel on an apple-touch-icon, composites what is left on BLACK, then
  * applies its own squircle mask. That failure is invisible everywhere a developer looks: Chrome,
- * Safari, the local preview and every screenshot honour alpha correctly, and the icon is only wrong
+ * Safari, the local preview and every screenshot honor alpha correctly, and the icon is only wrong
  * once someone adds the app to a home screen — which nobody does while shipping.
  *
  * BUT ALPHA IS NOT ITSELF THE BUG, and an earlier version of this file said it was. The touch icons
@@ -35,10 +35,10 @@ let pass = 0, fail = 0;
 const ok = (c, l) => { if (c) { pass++; console.log('  PASS  ' + l); } else { fail++; console.log('  FAIL  ' + l); } };
 
 /* Enough PNG to answer "how big is it and does any pixel have alpha". Only the IHDR is needed for
-   the size; for alpha, colour type 6/4 means an alpha channel EXISTS, and we inflate to see whether
+   the size; for alpha, color type 6/4 means an alpha channel EXISTS, and we inflate to see whether
    it is actually used — a fully-opaque RGBA file is fine, an RGB one trivially is. */
 /* Enough PNG to answer "how big is it, does any pixel have alpha, and what are the pixels".
-   8-bit, non-interlaced, colour types 0/2/3/4/6 — which is everything in this repo. */
+   8-bit, non-interlaced, color types 0/2/3/4/6 — which is everything in this repo. */
 function readPng(file, wantPixels) {
   const d = fs.readFileSync(file);
   if (d.slice(0, 8).toString('binary') !== '\x89PNG\r\n\x1a\n') throw new Error(file + ': not a PNG');
@@ -105,7 +105,7 @@ function readPng(file, wantPixels) {
         it was supposed to be testing, so it confirmed it. A test built on the belief it is checking
         cannot fail.
      3. this one — same assertion as (1), but grounded in what the device actually did.
-   The lesson is not "alpha bad". It is that the composite colour was never verified against a real
+   The lesson is not "alpha bad". It is that the composite color was never verified against a real
    device until a screenshot arrived, and every argument built on top of the guess inherited it. */
 
 console.log('\n1. apple-touch icons must be FULL-BLEED — iOS composites alpha on WHITE');

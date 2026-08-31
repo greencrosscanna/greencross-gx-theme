@@ -210,7 +210,7 @@
       'color:inherit;border-radius:3px;padding:0 7px;line-height:16px;">' + (on ? 'disarm' : 'arm writes') + '</button>';
     document.getElementById('gx-dev-arm').onclick = function () { setArmed(!armed()); };
 
-    // Blocked actions get their OWN chip, in their own colour, so it reads the same whether or not
+    // Blocked actions get their OWN chip, in their own color, so it reads the same whether or not
     // writes are armed. This is the half of the gate an app's fallback cannot swallow.
     var names = Object.keys(BLOCKED);
     if (names.length) {

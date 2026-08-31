@@ -52,7 +52,7 @@
   }
 
   /* Write --store-<store_id> for every store, keyed on the ID. An app should never hardcode a store
-     colour again: `background: var(--store-bend)`. */
+     color again: `background: var(--store-bend)`. */
   function paintVars() {
     if (!global.document) return;
     var root = document.documentElement;

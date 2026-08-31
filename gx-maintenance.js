@@ -4,7 +4,7 @@
  * in between. Treat it accordingly.
  *
  * Design: design_handoff_under_construction/ in this repo (Sky, 2026-08-26). Copy, spacing, timings
- * and the smoke field are recreated from that handoff; the colours are theme tokens, not the hexes
+ * and the smoke field are recreated from that handoff; the colors are theme tokens, not the hexes
  * the prototype inlined.
  *
  * ── WHY IT IS ONE SHARED MODULE AND NOT SIX maintenance.html FILES ───────────────────────────────

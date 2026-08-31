@@ -88,7 +88,7 @@
            listener yet the message is simply dropped, and a single attempt then waits out the whole
            timeout and falls back to a login the user should never have seen. The host embeds the
            iframe in its own HTML, so the child routinely loads and asks BEFORE the host's script has
-           run -- asking once works only when the ordering happens to favour it. */
+           run -- asking once works only when the ordering happens to favor it. */
         var ask = function () { try { global.parent.postMessage({ type: REQ }, '*'); } catch (e) {} };
         ask();
         var poll = setInterval(function () { if (done) { clearInterval(poll); return; } ask(); }, 200);

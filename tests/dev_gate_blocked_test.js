@@ -35,7 +35,7 @@ ok(Object.keys(D.blocked()).length === 0, 'nothing blocked before anything is tr
 console.log('\n2. a blocked action is RECORDED, not only thrown');
 let threw = false;
 try { D.check('published_goals'); } catch (e) { threw = true; }
-ok(threw, 'still THROWS — the loud behaviour is unchanged');
+ok(threw, 'still THROWS — the loud behavior is unchanged');
 ok(D.blocked().published_goals === 1, '...and is now also recorded where a try/catch cannot reach it');
 
 console.log('\n3. this is the exact shape that fooled a real verification');

@@ -94,7 +94,7 @@ const BASE = 'https://script.google.com/macros/s/AKfycTEST/exec';
   serve(() => DRIVE_HTML);
   try { await enginePost(BASE, { action: 'somethingNobodyAudited', x: 1 }); } catch (e) {}
   ok(calls.length === 1,
-     '§2 an UNLISTED write → EXACTLY 1 attempt; an explicit retries:0 is honoured across the boundary');
+     '§2 an UNLISTED write → EXACTLY 1 attempt; an explicit retries:0 is honored across the boundary');
 
   /* ══ §3 the session token survives the handoff ═════════════════════════════════════════════
      enginePost signs, then hands postJSON the ORIGINAL object. That works only because pcSign

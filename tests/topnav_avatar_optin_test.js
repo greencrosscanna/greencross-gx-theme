@@ -8,7 +8,7 @@
  * was added, three apps had someone actively working in them, and the decision was that each app
  * would adopt it on its own schedule instead of having it appear mid-task.
  *
- * That decision is only honoured if the row is genuinely INERT until an app asks for it. "I designed
+ * That decision is only honored if the row is genuinely INERT until an app asks for it. "I designed
  * it to be opt-in" is a claim; this is the check. If a later edit ever makes the row unconditional,
  * it stops being an opt-in component and starts being a change to six live apps at once.
  *
@@ -113,7 +113,7 @@ console.log('\n5. an app that already supplies its own avatar item is not given 
 console.log('\n6. the label is overridable without touching this file');
 {
   const slot = render({ avatarEdit: { token: 't', app: 'spiff', label: 'Change my face' } });
-  ok(/>Change my face\s/.test(slot.innerHTML), 'avatarEdit.label is honoured');
+  ok(/>Change my face\s/.test(slot.innerHTML), 'avatarEdit.label is honored');
 }
 
 console.log('\n7. the source keeps the row conditional — a guard against a "simplifying" edit');

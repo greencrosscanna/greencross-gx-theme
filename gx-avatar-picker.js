@@ -300,7 +300,7 @@
            way out was the Back button you had already stopped looking at.
            The pause is deliberate and matches Remove: closing instantly makes a successful save
            indistinguishable from a click that missed, because the confirmation would be gone before it
-           was read. A caller with no close() keeps the old behaviour — the status clears and the
+           was read. A caller with no close() keeps the old behavior — the status clears and the
            picker stays put, which is correct when it IS the page. */
         if (opts.close) setTimeout(function () { opts.close(); }, 1200);
         else setTimeout(function () { status(''); }, 3000);

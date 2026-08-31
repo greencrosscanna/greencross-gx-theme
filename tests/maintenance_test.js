@@ -30,7 +30,7 @@ const ok = (c, l) => { if (c) { pass++; console.log('  PASS  ' + l); } else { fa
 /* ── A DOM stub just deep enough for render()/teardown() ────────────────────────────────────────
    Nodes built from innerHTML are registered by scanning the markup for id="…", so getElementById
    finds the buttons and the timer slots the way a real parser would. Without that, render() wires
-   listeners to null and every behavioural test below passes vacuously. */
+   listeners to null and every behavioral test below passes vacuously. */
 function load(opts) {
   opts = opts || {};
   const byId = {};
@@ -292,7 +292,7 @@ const fetchBoom = () => () => Promise.reject(new Error('network'));
     const highest = (ladder.match(/z-index:\s*(\d+)/g) || [])
       .map(s => Number(s.replace(/\D/g, ''))).reduce((a, b) => Math.max(a, b), 0);
     ok(highest < 10000, 'and beats every z-index actually set in gx-theme.css (highest is ' + highest + ')');
-    ok(/prefers-reduced-motion:reduce/.test(css), 'reduced motion is honoured (the smoke is the point of that query)');
+    ok(/prefers-reduced-motion:reduce/.test(css), 'reduced motion is honored (the smoke is the point of that query)');
     ok(/@media \(max-width:520px\)/.test(css) && /font-size:64px/.test(css),
        'the 108px clock is clamped on a phone');
   }

@@ -9,7 +9,7 @@
  *   _gchat       is the Green Cross hat: DiceBear renders shortFlat underneath and the hat SVG goes
  *                on top as an overlay, so hair peeks out from under it
  *   hat styles   (hat, winterHat1) take hatColor and must NOT be sent hairColor
- *   probabilities must be pinned to 0/100 explicitly, or DiceBear randomises them per seed
+ *   probabilities must be pinned to 0/100 explicitly, or DiceBear randomizes them per seed
  *
  * USAGE
  *   GXAvatar.url(cfg, seed)            -> the DiceBear SVG URL

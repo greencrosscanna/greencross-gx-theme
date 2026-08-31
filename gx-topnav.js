@@ -1,8 +1,8 @@
-/* GX TopNav — behaviour for the shared header's user menu.
+/* GX TopNav — behavior for the shared header's user menu.
  * Canonical source: greencross-gx-theme/gx-topnav.js.
  *
  * Settings, version and sign-out are deliberately NOT separate header buttons -- they live behind the
- * user chip, so the bar stays readable as an app grows. That means a menu, and a menu means behaviour
+ * user chip, so the bar stays readable as an app grows. That means a menu, and a menu means behavior
  * every app would otherwise reimplement (and get wrong: click-outside, Escape, aria-expanded).
  *
  * USAGE  — call once after the header is in the DOM:

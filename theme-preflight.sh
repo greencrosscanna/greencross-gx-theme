@@ -236,7 +236,7 @@ fi
 
 # ── tests ────────────────────────────────────────────────────────────────────────────────────────
 # The parse checks above prove these files are syntactically valid JS. They cannot prove the shared
-# layer still BEHAVES — and this repo is loaded live from Pages by five apps, so a behavioural
+# layer still BEHAVES — and this repo is loaded live from Pages by five apps, so a behavioral
 # regression here ships to all of them with no deploy and no review in between. Anything with a test
 # gets it run on the way out.
 # JUDGE THE COMMIT, NOT THE DESK. Same change gx-preflight.sh got on 2026-08-29, and this repo has

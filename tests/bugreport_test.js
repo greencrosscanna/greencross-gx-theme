@@ -336,7 +336,7 @@ console.log('\nS3. a failed upload does not silently file a report without the p
      'and the reason is shown rather than swallowed');
 }
 
-console.log('\nS4. no image attached → unchanged behaviour');
+console.log('\nS4. no image attached → unchanged behavior');
 {
   let sent = null, uploads = 0;
   const { GXB, doc } = load();

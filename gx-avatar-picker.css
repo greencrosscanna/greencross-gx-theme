@@ -12,7 +12,7 @@
  * NO VIEWPORT ASSUMPTION. The original set min-height:100vh, correct for a routed full-page view and
  * wrong inside Crew's roster panel. The host decides: add .gxava-full for the full-page treatment.
  *
- * Colours come from gx-theme custom properties with literal fallbacks, so the picker still renders
+ * Colors come from gx-theme custom properties with literal fallbacks, so the picker still renders
  * correctly in an app that has not loaded gx-theme.css.
  */
 

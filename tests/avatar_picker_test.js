@@ -138,7 +138,7 @@ console.log('\n5c. Save exits the way Remove does');
   ok(/setTimeout/.test(saveBlock), '...after a pause, so the confirmation is readable');
   ok(/1200/.test(saveBlock), 'and the pause matches Remove (1200ms), so the two exits feel the same');
   // A caller that owns the whole page has nowhere to go; it must not be forced to close.
-  ok(/else/.test(saveBlock), 'a caller with no close() keeps the old stay-put behaviour');
+  ok(/else/.test(saveBlock), 'a caller with no close() keeps the old stay-put behavior');
   // Closing must never happen on a FAILED save — that would hide the error.
   var failIdx = saveBlock.indexOf("res.ok === false");
   var closeIdx = saveBlock.indexOf('opts.close');

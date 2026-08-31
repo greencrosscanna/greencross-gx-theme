@@ -16,7 +16,7 @@
  * one genuinely unsafe write while auditing its own (markPrinted appended an archive row with a fresh
  * UUID per call) that a blanket retry would have started double-archiving. So "absent means once" is
  * a SAFETY property, not a style choice, and the obvious tidy-up — making postJSON's default match
- * its two neighbours — is the exact regression that must fail loudly here.
+ * its two neighbors — is the exact regression that must fail loudly here.
  *
  * These drive the REAL postJSON out of the real gx-client.js via its module.exports, with fetch and
  * GXDev stubbed. A test that reimplements the thing under test cannot catch it changing.
@@ -76,7 +76,7 @@ async function run() {
 
     const c3 = stubFetch(() => html());
     try { await client().postJSON('markPrinted', {}, { retries: 0 }); } catch (e) {}
-    ok(c3.length === 1, '§1 retries:0 is honoured, not treated as "falsy → use the default"');
+    ok(c3.length === 1, '§1 retries:0 is honored, not treated as "falsy → use the default"');
 
     // The regression guard, stated as the thing it forbids: constructing the client with the same
     // retries the READS use must NOT leak into the write default. Someone tidying the three doors to
