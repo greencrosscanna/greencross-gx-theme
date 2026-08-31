@@ -55,7 +55,7 @@ marker alone on its own line:
 | `_ship-policy.md` | direct-to-main vs `feat/` branch, and why | gxbrain, gxwhatsnext |
 | `_notes-discipline.md` | read inbox/bugs, resolve-don't-reply, `kind`, outbox | gxbrain |
 | `_closeout.md` | offer to ship, then offer to archive | gxbrain, gxwhatsnext |
-| `_naming.md` | name things by subject, never by id | gxbrain |
+| `_naming.md` | name things by subject, never by id | gxbrain, gxwhatsnext, gxbug |
 
 `gx-commands-sync.sh` expands these when it installs, so the file that lands in `~/.claude/commands` is
 flat and self-contained — Claude never sees a marker. Leading whitespace before a marker is applied to

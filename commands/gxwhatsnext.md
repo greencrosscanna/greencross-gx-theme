@@ -86,6 +86,11 @@ sequence, kept fresh in the CC.
    so Sky can act by number ("do 3", "note 1", "start 2"). The count CONTINUES from the housekeeping
    still-pending items (so if 2 notes are pending, the first In-flight/next item is `[3]`). Put the number
    at the front of each line; keep it stable within the reply.
+
+   **Refer to every item by its `title`, never by its id.** This readout is the place ids leak — build-order
+   entries and in-flight jobs both carry one, and a line like `job_mtg9vyxs_ewd9 — working` is unreadable:
+
+   <!-- @include _naming.md -->
    - **In flight** (`inFlight`: queued / working / in_review jobs) — surface these first and **do NOT
      re-dispatch or rebuild them**. If one is `in_review` with a PR, the next move is to review/merge it.
    - **What's next** (`buildOrder`) — the recommended build order for this app, and the answer to "what's
@@ -94,7 +99,8 @@ sequence, kept fresh in the CC.
      **Dispatched work comes first and is already marked.** An entry with `dispatched: true` is one Sky
      queued from the Command Center — a decision someone made by clicking, which outranks the digest's
      schedule-generated sequence. GX Core puts these at the head of `buildOrder` and removes them from
-     `backlog`, so **never present a dispatched item as backlog**. Each carries `job_id` and `status`;
+     `backlog`, so **never present a dispatched item as backlog**. Each carries `job_id` and `status` — the `job_id` is
+     for the `dev_update`/`dev_ship` calls you make, not for the readout; say the item's `title`;
      one whose wave reads *"Dispatched from the Command Center"* was never sequenced by the digest at all.
      These are the same jobs as `inFlight` — that overlap is deliberate, the two answer different
      questions ("what is running" vs "what do I build next") — so **give each one number, not two**:

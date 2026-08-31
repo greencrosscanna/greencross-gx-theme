@@ -66,8 +66,12 @@ curl -sL -G "<GXCORE>" --data-urlencode action=ingest_bug \
 
 ## 5. Report back
 
-Give the bug id, the app it landed on, and say plainly that it is now on the Command Center board and
-in that app's `/gxbrain` inbox. If the target was NOT this chat's app, say so explicitly — the reader
+Say what you filed — **by its title, not its id** — the app it landed on, and plainly that it is now on
+the Command Center board and in that app's `/gxbrain` inbox. `bug_mtg9vyxs_ewd9` on its own is not a
+report; *"filed 'Won't load settings' against the Command Center (bug_mtg9vyxs_ewd9)"* is.
+
+<!-- @include _naming.md -->
+ If the target was NOT this chat's app, say so explicitly — the reader
 should never have to wonder where it went.
 
 **If you can fix it right now and it is this chat's app, say so and offer.** A bug filed and fixed in
