@@ -88,10 +88,21 @@ sequence, kept fresh in the CC.
    at the front of each line; keep it stable within the reply.
    - **In flight** (`inFlight`: queued / working / in_review jobs) — surface these first and **do NOT
      re-dispatch or rebuild them**. If one is `in_review` with a PR, the next move is to review/merge it.
-   - **What's next** (`buildOrder`) — the recommended build order for this app: the CC's dependency waves
-     filtered to this app, in sequence. This is the answer to "what's next" — lead with the top item and its
-     wave. If `buildOrder` is empty (no digest yet, or none of this app's items are sequenced), fall back to
-     the app's open **`backlog`** (Asana order) and say so.
+   - **What's next** (`buildOrder`) — the recommended build order for this app, and the answer to "what's
+     next". Lead with the top item and its wave.
+
+     **Dispatched work comes first and is already marked.** An entry with `dispatched: true` is one Sky
+     queued from the Command Center — a decision someone made by clicking, which outranks the digest's
+     schedule-generated sequence. GX Core puts these at the head of `buildOrder` and removes them from
+     `backlog`, so **never present a dispatched item as backlog**. Each carries `job_id` and `status`;
+     one whose wave reads *"Dispatched from the Command Center"* was never sequenced by the digest at all.
+     These are the same jobs as `inFlight` — that overlap is deliberate, the two answer different
+     questions ("what is running" vs "what do I build next") — so **give each one number, not two**:
+     list it under In flight, and when you reach What's next say the top item is that same `[n]` rather
+     than renumbering it.
+
+     If `buildOrder` is empty (no digest yet, nothing dispatched, and none of this app's items are
+     sequenced), fall back to the app's open **`backlog`** (Asana order) and say so.
    - **Cross-app priorities** (`priorities`) that touch this app — mention briefly if present.
    - **Flag a stale digest.** Since we no longer regenerate it, check `digest_at` in the response: if it's more
      than a day old (or `has_digest` is false), say so in one line — "digest is from <date>; regen in the
