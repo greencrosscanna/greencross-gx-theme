@@ -47,6 +47,23 @@
     defaults = defaults || {};
     var RETRIES  = defaults.retries   != null ? defaults.retries   : 4;      // total attempts = RETRIES + 1
     var TIMEOUT  = defaults.timeoutMs != null ? defaults.timeoutMs : 8000;   // per-attempt; a miss = no callback within this
+    /* THE LAST ATTEMPT WAITS PROPERLY, because two different failures were being treated as one.
+     *
+     * The Drive-HTML miss this client exists for is INSTANT — the second hop answers immediately
+     * with the wrong thing, so an 8s timeout and a quick retry is exactly right, and the fresh
+     * exec→content flow usually succeeds.
+     *
+     * An Apps Script COLD START is the opposite: the request is alive and would succeed, it just
+     * takes 30-40s. Measured on GX Core 2026-09-01 after a run of deploys — 40.9s then 1.2s on the
+     * very next call. Against that, an 8s timeout does not detect a failure, it CAUSES one: it
+     * abandons an instance that is warming and starts another cold request, five times over. The
+     * whole budget was 5 x 8s + 6s backoff = 46s, which is why sign-in took ~45s in a warm browser
+     * and failed outright in a private window.
+     *
+     * So the fast retries stay for the miss, and the FINAL attempt is patient enough to ride out a
+     * cold start. Same total attempts, roughly double the budget, and the extra time is only ever
+     * spent when every fast attempt has already failed. */
+    var LAST_TIMEOUT = defaults.lastTimeoutMs != null ? defaults.lastTimeoutMs : 45000;
     var BACKOFF  = defaults.backoffMs != null ? defaults.backoffMs : 600;    // linear: 600ms, 1200ms, 1800ms…
     var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
@@ -81,11 +98,15 @@
       opts = opts || {};
       var retries = opts.retries != null ? opts.retries : RETRIES;
       var timeoutMs = opts.timeoutMs != null ? opts.timeoutMs : TIMEOUT;
+      var lastTimeoutMs = opts.lastTimeoutMs != null ? opts.lastTimeoutMs : LAST_TIMEOUT;
       var run = async function () {
         var lastErr;
         for (var a = 0; a <= retries; a++) {
           if (a) await sleep(BACKOFF * a);
-          try { return await jsonpOnce(action, params, timeoutMs); }
+          // The final attempt gets the patient budget — by now the instant-miss theory is spent,
+          // and what is left looks like a cold start that simply needs longer.
+          var budget = (a === retries) ? Math.max(timeoutMs, lastTimeoutMs) : timeoutMs;
+          try { return await jsonpOnce(action, params, budget); }
           catch (e) { lastErr = e; }
         }
         throw new Error('GX jsonp "' + action + '" failed after ' + (retries + 1) + ' tries: ' + (lastErr && lastErr.message));
