@@ -30,8 +30,14 @@ const BASE = 'https://script.google.com/macros/s/AKfycTEST/exec';
 
 /* Drives the REAL jsonp() through a fake <script> element. `plan(i)` decides how attempt i behaves:
      'miss' — script.onerror fires at once   (the instant Drive-HTML second-hop miss)
+     'slow' — script.onerror fires LATE      (the same miss, arriving after the budget)
      'hang' — nothing ever fires             (Core is loaded; the timeout budget expires)
-     'ok'   — the JSONP callback fires       (success) */
+     'ok'   — the JSONP callback fires       (success)
+
+   'slow' is the case the first pass of this fix did not model, and its absence is why the fix
+   shipped inverted. Measured 2026-09-02: GX Core answered its own hop in ~1.7s median while
+   Google's second hop took 20-50s on 12% of calls and 404'd anyway. A miss is NOT reliably
+   instant. Anything that reads "took too long" as "the server is loaded" mislabels it. */
 function drive(plan, extra) {
   const attempts = [];
   global.document = {
@@ -46,6 +52,7 @@ function drive(plan, extra) {
         const i = attempts.length - 1;
         const mode = typeof plan === 'function' ? plan(i) : plan;
         if (mode === 'miss') setTimeout(() => { if (el.onerror) el.onerror(); }, 0);
+        else if (mode === 'slow') setTimeout(() => { if (el.onerror) el.onerror(); }, 60);  // lands after the 40ms budget
         else if (mode === 'ok') {
           const cb = /[?&]callback=([^&]+)/.exec(attempts[i].url)[1];
           setTimeout(() => { if (global[cb]) global[cb]({ ok: true, via: i }); }, 0);
@@ -74,7 +81,42 @@ function drive(plan, extra) {
     let threw = false;
     try { await d.client.jsonp('stores'); } catch (e) { threw = true; }
     ok(threw, 'it still gives up rather than hanging forever');
-    ok(d.attempts.length === 2, 'a timeout skips to the patient final attempt: 2 requests, not 5 — got ' + d.attempts.length);
+    /* CORRECTED 2026-09-02 (second pass): 4, not 2. Damping waits for EVIDENCE — three timeouts
+       inside the five-attempt window — instead of firing on the first one. A server that is
+       genuinely loaded produces that run immediately, so the amplification this section exists to
+       prevent is still prevented; what changed is that one unlucky slow response no longer counts
+       as a loaded server. §2b is the case that bought the change. */
+    ok(d.attempts.length === 4, 'a sustained run of timeouts still skips to the patient final attempt — got ' + d.attempts.length);
+    ok(d.client._congested() === true, 'and the client knows it is congested');
+  }
+
+  console.log('\n2b. THE INVERSION: a SLOW miss is a miss, not a loaded server');
+  {
+    /* The first pass classified any timeout as congestion and cut the budget from 5 attempts to 2.
+       Under the latency actually measured that afternoon, two slow misses in a row then FAILED the
+       call outright — a blank widget in front of a staff member, caused by the cure. The old client
+       would have retried three more times and succeeded. This is that exact sequence. */
+    const d = drive((i) => (i < 2 ? 'slow' : 'ok'));
+    let r = null, threw = false;
+    try { r = await d.client.jsonp('stores'); } catch (e) { threw = true; }
+    ok(!threw && r && r.ok === true, 'two SLOW misses then a hit still resolves — it must not give up first');
+    ok(r && r.via === 2, 'and it was the third attempt that answered');
+    ok(d.client._congested() === false, 'two slow responses are not a congested server');
+  }
+
+  console.log('\n2c. an isolated slow miss keeps the full retry budget');
+  {
+    const d = drive((i) => (i === 0 ? 'slow' : 'ok'));
+    const r = await d.client.jsonp('stores');
+    ok(r && r.via === 1, 'one slow miss then a hit resolves on the very next attempt');
+  }
+
+  console.log('\n2d. the congestion window CLEARS — recovery needs no timer');
+  {
+    const d = drive((i) => (i < 3 ? 'hang' : 'ok'));
+    await d.client.jsonp('stores');                       // trips congested(), then succeeds
+    for (let i = 0; i < 4; i++) await d.client.jsonp('stores');   // successes push the timeouts out
+    ok(d.client._congested() === false, 'a run of successes clears the signal on its own');
   }
 
   console.log('\n3. the patient final attempt survives — a cold start must still be ridden out');

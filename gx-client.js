@@ -98,6 +98,42 @@
       return Math.round(base - spread + Math.random() * 2 * spread);
     }
 
+    /* CONGESTION IS A PROPERTY OF THE SERVER, NOT OF ONE ATTEMPT — 2026-09-02, second pass.
+     *
+     * The first pass damped the retry the moment a SINGLE attempt timed out, on the reasoning that
+     * "a miss answers instantly, so anything slow must be a loaded server". Measured the same
+     * afternoon, that premise is false. GX Core answered its own hop in ~1.7s (median of 25 calls)
+     * while the SECOND hop — Google's content server, which we do not run and cannot speed up —
+     * took 20-50s on 12% of calls and returned the Drive-HTML miss anyway. A miss is not reliably
+     * instant. It is just as often slow, and it is still a miss.
+     *
+     * Treating that as congestion inverted the fix: a slow miss dropped the call from five attempts
+     * to two, cutting the retry budget by 60% for exactly the failure this client was written to
+     * defeat. Two slow misses in a row then failed the call outright, where the old client would
+     * have retried three more times and succeeded — a blank widget in front of a staff member,
+     * caused by the cure rather than the disease.
+     *
+     * So the signal is no longer read off one attempt. Congestion means a RUN of timeouts across
+     * every call this client has made recently: CONGESTION_TRIP of the last CONGESTION_WINDOW
+     * outcomes. That is the shape of a genuinely loaded server and it is not the shape of one
+     * unlucky second hop. Real congestion still trips it within the first call or two and every
+     * call after that is damped — which is all the original fix needed to stop the fleet-wide
+     * amplification. An isolated slow miss keeps the full five attempts.
+     *
+     * Successes push timeouts out of the window, so recovery needs no timer and no reset. */
+    var CONGESTION_WINDOW = defaults.congestionWindow != null ? defaults.congestionWindow : 5;
+    var CONGESTION_TRIP   = defaults.congestionTrip   != null ? defaults.congestionTrip   : 3;
+    var _recent = [];                                        // last N attempt outcomes; true = timed out
+    function noteOutcome(timedOut) {
+      _recent.push(timedOut === true);
+      while (_recent.length > CONGESTION_WINDOW) _recent.shift();
+    }
+    function congested() {
+      var n = 0;
+      for (var i = 0; i < _recent.length; i++) if (_recent[i]) n++;
+      return n >= CONGESTION_TRIP;
+    }
+
     function buildUrl(action, params, extra) {
       var u = new URL(baseUrl);
       u.searchParams.set('action', action);
@@ -155,16 +191,25 @@
           // The final attempt gets the patient budget — by now the instant-miss theory is spent,
           // and what is left looks like a cold start that simply needs longer.
           var budget = (a === retries) ? Math.max(timeoutMs, lastTimeoutMs) : timeoutMs;
-          try { return await jsonpOnce(action, params, budget); }
+          try {
+            var payload = await jsonpOnce(action, params, budget);
+            noteOutcome(false);                  // it answered — evidence the server is NOT loaded
+            return payload;
+          }
           catch (e) {
             lastErr = e;
-            slow = (e && e.gxSlow) === true;
+            noteOutcome((e && e.gxSlow) === true);
             /* CONGESTION: skip the remaining fast attempts and go straight to the patient one.
                Five 8s attempts per call means every caller multiplies its own load by five at
                exactly the moment GX Core is least able to take it — and because the old backoff
                was linear and identical everywhere, every open tab in every store retried in
                lockstep and arrived as one wave. Two attempts still ride out a cold start (the
-               final budget is 45s); five only ever made the queue longer. */
+               final budget is 45s); five only ever made the queue longer.
+
+               But this is decided by congested(), NOT by this one attempt timing out. A single
+               slow response is an unlucky second hop far more often than it is a loaded server,
+               and damping on it costs the miss retry this client exists for. See congested(). */
+            slow = congested();
             if (slow && a < retries - 1) a = retries - 1;
           }
         }
@@ -290,7 +335,7 @@
       throw new Error('GX postJSON "' + action + '" failed after ' + (retries + 1) + ' tr' + (retries ? 'ies' : 'y') + ': ' + (lastErr && lastErr.message));
     }
 
-    return { jsonp: jsonp, getJSON: getJSON, postJSON: postJSON, buildUrl: buildUrl, base: baseUrl };
+    return { jsonp: jsonp, getJSON: getJSON, postJSON: postJSON, buildUrl: buildUrl, base: baseUrl, _congested: congested };
   }
 
   global.GXClient = GXClient;
