@@ -29,7 +29,7 @@ product barcodes and writes to live inventory should not take that on when the f
   pin. Never add an unversioned path or a `latest` alias.
 - **Re-vendoring is its own change.** Do not bump a version in the same commit that moves an app onto
   the vendored copy — a regression then has two possible causes and you cannot tell which.
-- `SOURCES.tsv` records where each file came from and its licence; `SHA256SUMS` records the bytes.
+- `SOURCES.tsv` records where each file came from and its license; `SHA256SUMS` records the bytes.
 
 ## Verify
 
@@ -38,7 +38,7 @@ sh vendor/verify.sh          # checksums match what is committed
 sh vendor/verify.sh --remote # AND re-fetch upstream and diff, proving we altered nothing
 ```
 
-## Licences
+## Licenses
 
 All permissive and redistributable with attribution: Apache-2.0 (SheetJS `xlsx`, `jsQR`,
 `html5-qrcode`) and MIT (`@zxing/library`, `Chart.js`). Attribution is the upstream header comment
