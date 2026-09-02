@@ -123,6 +123,39 @@ function drive(plan, extra) {
        'and still defaults to ZERO retries — a replayed write is a corrupted write');
   }
 
+  console.log('\n8. postJSON has a DEADLINE — the write path had none at all');
+  {
+    // The bug reporter's upload is the visible case: gxCoreUploader asks for retries:2, so before
+    // this a hung upload was three UNBOUNDED attempts, each re-sending a multi-MB base64 body,
+    // while the modal said "Uploading…" forever. Sky's kiosk report on 2026-09-02 died exactly here.
+    let aborted = 0, started = 0;
+    global.fetch = (url, init) => new Promise((_res, rej) => {
+      started++;
+      if (init && init.signal) init.signal.addEventListener('abort', () => { aborted++; rej(Object.assign(new Error('aborted'), { name: 'AbortError' })); });
+      // never resolves otherwise — this is the hang
+    });
+    const c = GXClient(BASE, { postTimeoutMs: 60, slowBackoffMs: 5 });
+    const t0 = Date.now();
+    let msg = '';
+    try { await c.postJSON('bug_shot', { a: 1 }); } catch (e) { msg = e.message; }
+    const el = Date.now() - t0;
+    ok(started === 1, 'one attempt by default — a write is still not replayed');
+    ok(aborted === 1, 'the hung request was actually aborted, not just abandoned');
+    ok(el < 2000, 'and it gave up promptly (' + el + 'ms) instead of hanging forever');
+    ok(/timed out/.test(msg), 'the error says it timed out rather than a generic failure — got: ' + msg);
+  }
+
+  console.log('\n9. a working POST is not cut off by the deadline');
+  {
+    global.fetch = async () => ({ status: 200, text: async () => JSON.stringify({ ok: true, url: 'https://drive/x' }) });
+    const c = GXClient(BASE, { postTimeoutMs: 60000 });
+    const r = await c.postJSON('bug_shot', { a: 1 });
+    ok(r && r.ok === true && r.url === 'https://drive/x', 'a normal upload still resolves with its payload');
+    const src = require('fs').readFileSync(path.join(__dirname, '..', 'gx-client.js'), 'utf8');
+    ok(/POST_TIMEOUT\s*=\s*defaults\.postTimeoutMs\s*!=\s*null\s*\?\s*defaults\.postTimeoutMs\s*:\s*60000/.test(src),
+       'the default ceiling is a generous 60s — this ends an infinite wait, it does not police latency');
+  }
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })();

@@ -79,7 +79,18 @@
      * evidence the server is loaded — the correct response to which is to wait, not to try harder.
      * The fast path (an instant Drive-HTML miss) keeps the old quick cadence: that retry is cheap,
      * it is what this client was written for, and nothing about it adds load. */
-    var SLOW_BACKOFF = defaults.slowBackoffMs != null ? defaults.slowBackoffMs : 4000;
+    /* An explicit backoffMs governs BOTH paths. A caller that asked for no backoff — every test in
+       this suite passes backoffMs:0 to stay fast — must not be handed a 4s slow-path wait it never
+       asked for. Only an unconfigured client gets the higher default, and slowBackoffMs still wins
+       outright when it is named. (Caught by postjson_handoff_contract_test.js hanging: it set
+       backoffMs:0 and my first cut ignored it, which is the same bug in miniature as the one this
+       whole change is about — a client deciding it knows better than the caller about waiting.) */
+    var SLOW_BACKOFF = defaults.slowBackoffMs != null ? defaults.slowBackoffMs
+                     : (defaults.backoffMs != null ? defaults.backoffMs : 4000);
+    // Per-ATTEMPT ceiling for postJSON. Deliberately far larger than jsonp's 8s: a multi-megabyte
+    // screenshot through the two-hop redirect is legitimately slow, and this is here to end an
+    // unbounded wait, not to enforce a latency budget.
+    var POST_TIMEOUT = defaults.postTimeoutMs != null ? defaults.postTimeoutMs : 60000;
     var JITTER = 0.5;                                        // +/- 50% of the computed wait
     function backoffFor(attempt, slow) {
       var base = slow ? SLOW_BACKOFF * Math.pow(2, attempt - 1) : BACKOFF * attempt;
@@ -219,6 +230,7 @@
       opts = opts || {};
       // NOT `!= null ? … : RETRIES` — see above. Absent means once.
       var retries = opts.retries != null ? opts.retries : 0;
+      var postTimeoutMs = opts.timeoutMs != null ? opts.timeoutMs : POST_TIMEOUT;
       // The action travels in the BODY, where Apps Script doPost handlers read it (e.postData
       // .contents), not in e.parameter. A caller that already put it there — the common case — gets
       // a byte-identical body; one that only passed it as the argument still gets a well-formed
@@ -226,22 +238,54 @@
       var body = JSON.stringify(
         (payload && payload.action != null) ? payload : Object.assign({ action: action }, payload || {})
       );
+      /* A WRITE NEEDS A DEADLINE, and this door shipped without one.
+       *
+       * TIMEOUT/LAST_TIMEOUT above are jsonp's; nothing bounded a POST, so an attempt waited as long
+       * as the connection stayed open — no progress, no cancel, no failure. The bug reporter's image
+       * upload is the visible case: gxCoreUploader asks for retries:2, so a hung upload was THREE
+       * unbounded attempts, each re-sending a multi-megabyte base64 body, while the modal said
+       * "Uploading…" forever. Leaderboard measured a bug_shot POST taking 26.1s cold just to REFUSE
+       * an invalid token, so with a real screenshot that state is indistinguishable from stuck.
+       *
+       * Generous on purpose — a large upload through the two-hop redirect is legitimately slow, and
+       * a deadline that fires on a working request is worse than none. This exists to end the
+       * infinite wait, not to police latency.
+       *
+       * AbortController is guarded: it is universal in the browsers this suite runs on, but under a
+       * test harness or an old WebView its absence must degrade to the previous behaviour rather
+       * than throw on the write path. */
       var lastErr;
       for (var a = 0; a <= retries; a++) {
-        if (a) await sleep(BACKOFF * a);
+        /* JITTERED, but NOT the read path's exponential slow base. That base exists because a read
+           storm is many tabs piling onto one server; a write is one person's click, and there are
+           never many of them at once. Applying it here made price-cards' exhausted submit wait
+           4+8+16+32s of pure backoff on top of its attempts — minutes, for someone standing at a
+           label printer. Jitter still helps and costs nothing; the escalation does not belong. */
+        if (a) await sleep(backoffFor(a, false));
+        var ctl = null, killer = null;
         try {
           // cache-bust every attempt so a bad intermediary response is never reused
           var u = baseUrl + (baseUrl.indexOf('?') < 0 ? '?' : '&') + '_ts=' + Date.now() + '_' + a;
-          var res = await fetch(u, {
+          var init = {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: body,
             redirect: 'follow'
-          });
+          };
+          if (typeof AbortController === 'function') {
+            ctl = new AbortController();
+            init.signal = ctl.signal;
+            killer = setTimeout(function () { try { ctl.abort(); } catch (e) {} }, postTimeoutMs);
+          }
+          var res = await fetch(u, init);
           var text = (await res.text()).trim();
           if (text && (text.charAt(0) === '{' || text.charAt(0) === '[')) return JSON.parse(text);
           lastErr = new Error('non-JSON body (HTTP ' + res.status + ') — Drive HTML page');
-        } catch (e) { lastErr = e; }
+        } catch (e) {
+          lastErr = (e && e.name === 'AbortError')
+            ? new Error('post timed out after ' + postTimeoutMs + 'ms')
+            : e;
+        } finally { if (killer) clearTimeout(killer); }
       }
       throw new Error('GX postJSON "' + action + '" failed after ' + (retries + 1) + ' tr' + (retries ? 'ies' : 'y') + ': ' + (lastErr && lastErr.message));
     }

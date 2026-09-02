@@ -400,6 +400,8 @@
       context:  JSON.stringify(snapshot()),
     };
 
+    var shotFailed = '';                    // set when the image failed; the report still goes
+
     Promise.resolve()
       // The image goes up FIRST, on its own, and only its URL joins the payload. It cannot ride the
       // report: each app owns that transport and they are not uniform — Sales submits through a GET
@@ -408,16 +410,28 @@
         if (!shotFile || typeof cfg.uploadShot !== 'function') return null;
         if (shotUrl) return { ok: true, url: shotUrl };      // already uploaded; a retry must not re-send
         btn.textContent = 'Uploading…';
-        return cfg.uploadShot(shotFile);
+        /* THE PICTURE MUST NOT BE ABLE TO SINK THE REPORT.
+         *
+         * This used to throw on an upload failure, BEFORE cfg.submit() ever ran — so a screenshot
+         * problem cost the written report entirely. Sky filed a bug from the Leaderboard kiosk on
+         * 2026-09-02 with an image attached; the modal sat on "Uploading…" and nothing reached the
+         * board at all. The words are the part that was always meant to survive: a report with a
+         * missing image is a working bug report, a lost report is nothing.
+         *
+         * The comment above already says the image "cannot ride the report". It must not be able to
+         * drown it either. Failures are swallowed into a marker here and reported after the text is
+         * safely filed. */
+        return Promise.resolve()
+          .then(function () { return cfg.uploadShot(shotFile); })
+          .catch(function (e) { return { ok: false, error: (e && e.message) || 'the upload did not finish' }; });
       })
       .then(function (up) {
         if (up && up.ok === false) {
-          // Flagged so the catch shows THIS reason instead of the generic transport message. "Check
-          // your connection" is actively misleading for "that image is over 10MB" — it sends someone
-          // to retry the one thing that cannot work.
-          var e = new Error(up.error || 'Could not upload the screenshot');
-          e.gxShow = true;
-          throw e;
+          // Carried INTO the report, not just shown on screen: whoever triages this needs to know a
+          // picture was meant to be here and why it is missing, long after the toast is gone.
+          shotFailed = up.error || 'Could not upload the screenshot';
+          payload.detail = String(payload.detail || '') +
+            '\n\n[a screenshot was attached but could not be uploaded: ' + shotFailed + ']';
         }
         if (up && up.url) { shotUrl = up.url; payload.screenshot_url = up.url; }
         btn.textContent = 'Sending…';
@@ -431,8 +445,13 @@
         doc.getElementById('gxBugBody').hidden = true;
         var ok = doc.getElementById('gxBugSuccess');
         ok.hidden = false;
-        ok.textContent = '✓ Reported — thank you!';
-        setTimeout(close, 2200);
+        /* Say so plainly. Claiming a clean "Reported!" when the screenshot was dropped is the same
+           class of lie as the {ok:false} case guarded just above — the person walks away believing
+           the picture is on the board. */
+        ok.textContent = shotFailed
+          ? '✓ Reported — but the screenshot could not be attached.'
+          : '✓ Reported — thank you!';
+        setTimeout(close, shotFailed ? 4200 : 2200);
       })
       .catch(function (e) {
         btn.disabled = false;

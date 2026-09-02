@@ -314,14 +314,28 @@ console.log('\nS2. the image goes up FIRST, and only its URL joins the payload')
   ok(sent && !sent.screenshot, 'and no raw image is in the payload');
 }
 
-console.log('\nS3. a failed upload does not silently file a report without the picture');
+/* S3 REVERSED ON 2026-09-02, deliberately, and the original decision deserves stating.
+ *
+ * This used to assert `submitted === false` — a failed upload aborted the whole report. The reason
+ * was sound on its face: do not SILENTLY file a report missing the picture someone chose to attach.
+ *
+ * The field disagreed. Sky filed a bug from the Leaderboard kiosk on 2026-09-02 with a screenshot;
+ * the modal sat on "Uploading…" and the report never landed — GX Core had zero rows for the app.
+ * The written report is the part that was always meant to survive: one with a missing image is a
+ * working bug report, a lost one is nothing. performance filed a note asking for exactly this.
+ *
+ * The ORIGINAL INTENT is kept in full — nothing is silent. The reason is shown on screen, it is
+ * written into the report's own detail for whoever triages it later, and the success message says
+ * the screenshot did not attach instead of a clean "Reported!". What changed is the remedy: tell
+ * the truth and file it, rather than throw the words away to protect the picture. */
+console.log('\nS3. a failed upload files the report anyway, and says so');
 {
-  let submitted = false;
+  let submitted = false, sent = null;
   const { GXB, doc, win } = load();
   win.URL = { createObjectURL: () => 'blob:x', revokeObjectURL() {} };
   GXB.init({
     app: 'inventory',
-    submit: () => { submitted = true; return { ok: true }; },
+    submit: (p) => { submitted = true; sent = p; return { ok: true }; },
     uploadShot: () => Promise.resolve({ ok: false, error: 'over 10MB' }),
   });
   GXB.open();
@@ -331,9 +345,35 @@ console.log('\nS3. a failed upload does not silently file a report without the p
   (file._listeners.change || []).forEach(fn => fn());
   click(doc, 'gxBugSubmit');
   await tick(); await tick(); await tick();
-  ok(submitted === false, 'the report is NOT sent when the upload was refused');
-  ok(/10MB|upload/i.test(doc.getElementById('gxBugStatus').textContent || ''),
-     'and the reason is shown rather than swallowed');
+  ok(submitted === true, 'the report IS sent even though the upload was refused');
+  ok(sent && /it broke/.test(String(sent.title) + String(sent.detail || '')), 'and it carries what was written');
+  ok(sent && /could not be uploaded/.test(String(sent.detail || '')),
+     'the detail records that a screenshot was meant to be here');
+  ok(sent && /over 10MB/.test(String(sent.detail || '')), 'and the actual reason, not a generic failure');
+  ok(sent && sent.screenshot_url === undefined, 'no screenshot_url is invented');
+  ok(/screenshot could not be attached/i.test(doc.getElementById('gxBugSuccess').textContent || ''),
+     'and the person is told the picture did not make it — never a clean "Reported!"');
+}
+
+console.log('\nS3b. an upload that THROWS is treated the same as one that refuses');
+{
+  let submitted = false, sent = null;
+  const { GXB, doc, win } = load();
+  win.URL = { createObjectURL: () => 'blob:x', revokeObjectURL() {} };
+  GXB.init({
+    app: 'inventory',
+    submit: (p) => { submitted = true; sent = p; return { ok: true }; },
+    uploadShot: () => Promise.reject(new Error('network died mid-upload')),
+  });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'it broke';
+  const file = doc.getElementById('gxBugShotFile');
+  file.files = [{ name: 'shot.png', type: 'image/png', size: 2048 }];
+  (file._listeners.change || []).forEach(fn => fn());
+  click(doc, 'gxBugSubmit');
+  await tick(); await tick(); await tick();
+  ok(submitted === true, 'a rejected uploadShot still files the report');
+  ok(sent && /network died mid-upload/.test(String(sent.detail || '')), 'carrying the thrown reason');
 }
 
 console.log('\nS4. no image attached → unchanged behavior');
