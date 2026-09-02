@@ -67,6 +67,26 @@
     var BACKOFF  = defaults.backoffMs != null ? defaults.backoffMs : 600;    // linear: 600ms, 1200ms, 1800ms…
     var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
+    /* SLOW_BACKOFF / JITTER — added 2026-09-02 after GX Core spent a morning at 25-30 doGet/min with
+     * callers queueing 56s for executions that themselves ran in 2s.
+     *
+     * The old wait was `BACKOFF * a` — linear, and IDENTICAL in every browser. Every open tab in
+     * every store therefore retried at the same 600ms / 1200ms / 1800ms offsets and arrived as one
+     * synchronized wave, which is the worst possible shape for a server that is already behind.
+     * Jitter is the whole point: same average delay, spread arrivals.
+     *
+     * The slow path also backs off exponentially and from a much higher base, because a timeout is
+     * evidence the server is loaded — the correct response to which is to wait, not to try harder.
+     * The fast path (an instant Drive-HTML miss) keeps the old quick cadence: that retry is cheap,
+     * it is what this client was written for, and nothing about it adds load. */
+    var SLOW_BACKOFF = defaults.slowBackoffMs != null ? defaults.slowBackoffMs : 4000;
+    var JITTER = 0.5;                                        // +/- 50% of the computed wait
+    function backoffFor(attempt, slow) {
+      var base = slow ? SLOW_BACKOFF * Math.pow(2, attempt - 1) : BACKOFF * attempt;
+      var spread = base * JITTER;
+      return Math.round(base - spread + Math.random() * 2 * spread);
+    }
+
     function buildUrl(action, params, extra) {
       var u = new URL(baseUrl);
       u.searchParams.set('action', action);
@@ -83,9 +103,27 @@
         var script = document.createElement('script');
         var done = false;
         var cleanup = function () { done = true; try { delete global[cb]; } catch (e) { global[cb] = undefined; } script.remove(); clearTimeout(timer); };
-        var timer = setTimeout(function () { if (!done) { cleanup(); reject(new Error('jsonp timeout (likely Drive HTML page)')); } }, timeoutMs);
+        /* LABEL THE FAILURE, because two of them need opposite responses and this client used to
+           treat them as one. A Drive-HTML second-hop miss answers INSTANTLY — retrying it at once is
+           free and correct, and is why this client exists. A TIMEOUT means GX Core is loaded and has
+           not answered; retrying that four more times is how a slow minute becomes a twenty-minute
+           outage (measured 2026-09-02: doGet running 25-30/min, each 1-3s, while callers waited 56s
+           for a slot). `gxSlow` is what tells jsonp() which one it just had. */
+        var timer = setTimeout(function () {
+          if (done) return;
+          cleanup();
+          var e = new Error('jsonp timeout (likely Drive HTML page)');
+          e.gxSlow = true;                       // no answer within the budget -> Core is loaded
+          reject(e);
+        }, timeoutMs);
         global[cb] = function (payload) { if (done) return; cleanup(); resolve(payload); };
-        script.onerror = function () { if (!done) { cleanup(); reject(new Error('jsonp script error')); } };
+        script.onerror = function () {
+          if (done) return;
+          cleanup();
+          var e = new Error('jsonp script error');
+          e.gxSlow = false;                      // answered, just not with JS -> the instant miss
+          reject(e);
+        };
         // cache-bust every attempt so a bad intermediary response is never reused
         script.src = buildUrl(action, params, { callback: cb, _ts: String(Date.now()) + '_' + _uid });
         document.head.appendChild(script);
@@ -100,14 +138,24 @@
       var timeoutMs = opts.timeoutMs != null ? opts.timeoutMs : TIMEOUT;
       var lastTimeoutMs = opts.lastTimeoutMs != null ? opts.lastTimeoutMs : LAST_TIMEOUT;
       var run = async function () {
-        var lastErr;
+        var lastErr, slow = false;
         for (var a = 0; a <= retries; a++) {
-          if (a) await sleep(BACKOFF * a);
+          if (a) await sleep(backoffFor(a, slow));
           // The final attempt gets the patient budget — by now the instant-miss theory is spent,
           // and what is left looks like a cold start that simply needs longer.
           var budget = (a === retries) ? Math.max(timeoutMs, lastTimeoutMs) : timeoutMs;
           try { return await jsonpOnce(action, params, budget); }
-          catch (e) { lastErr = e; }
+          catch (e) {
+            lastErr = e;
+            slow = (e && e.gxSlow) === true;
+            /* CONGESTION: skip the remaining fast attempts and go straight to the patient one.
+               Five 8s attempts per call means every caller multiplies its own load by five at
+               exactly the moment GX Core is least able to take it — and because the old backoff
+               was linear and identical everywhere, every open tab in every store retried in
+               lockstep and arrived as one wave. Two attempts still ride out a cold start (the
+               final budget is 45s); five only ever made the queue longer. */
+            if (slow && a < retries - 1) a = retries - 1;
+          }
         }
         throw new Error('GX jsonp "' + action + '" failed after ' + (retries + 1) + ' tries: ' + (lastErr && lastErr.message));
       };
