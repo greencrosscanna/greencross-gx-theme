@@ -393,7 +393,7 @@ const fetchBoom = () => () => Promise.reject(new Error('network'));
 
     const TPL = fs.readFileSync(path.join(ROOT, 'gx-app-template.html'), 'utf8');
     ok(/gx-theme\/gx-maintenance\.js/.test(TPL), 'the template loads gx-maintenance.js');
-    ok(/GXMaintenance\.init\(/.test(TPL), 'and initialises it');
+    ok(/GXMaintenance\.init\(/.test(TPL), 'and initializes it');
     ok(/GXMaintenance\.init\(\{[\s\S]{0,200}app:\s*'__APP_KEY__'/.test(TPL), 'passing the app key placeholder');
   }
 

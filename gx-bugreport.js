@@ -128,7 +128,7 @@
     /* Omit a zero dimension rather than filing "0x0". A backgrounded or not-yet-laid-out window
        reports 0, and "viewport: 0x0" in a bug report is not a small inaccuracy — it is a fact that
        looks measured, and someone will try to explain a layout bug with it. Observed live in the
-       preview, not theorised. An absent field is honest; a wrong one is not. */
+       preview, not theorized. An absent field is honest; a wrong one is not. */
     try { if (global.innerWidth > 0 && global.innerHeight > 0)
       o.viewport = global.innerWidth + 'x' + global.innerHeight + '@' + (global.devicePixelRatio || 1) + 'x'; } catch (e) {}
     try { if (global.screen.width > 0 && global.screen.height > 0)

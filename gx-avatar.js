@@ -42,7 +42,7 @@
     /* A stamped cfg.seed WINS over the caller's seed, and is emitted once.
        Crew pins seed to employee_number so a rename cannot scramble a face; the caller's seed is
        derived from the name and is exactly what that pinning exists to stop mattering.
-       Emitting both is not harmless: DiceBear honours the FIRST occurrence of a duplicated param
+       Emitting both is not harmless: DiceBear honors the FIRST occurrence of a duplicated param
        (measured, not assumed), so while the attribute loop below re-emitted cfg.seed as a second
        seed=, the stamped value silently lost to the name every time and the pinning did nothing. */
     var params = ['seed=' + encodeURIComponent(cfg.seed || seed || 'unknown')];

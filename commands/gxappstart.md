@@ -122,7 +122,7 @@ f. **Parent embed (if sub-of-Inventory).** Prepare the tab + iframe change on `g
    `<div class="panel" id="panel-$KEY">` + iframe, and the chrome branches that hide `.date-controls`
    and `ctrlBar` when that tab is active.
    **Gate the tab on access.** Do not render it for everyone: ask GX Core `action=grants` with the
-   session token and show it only when the user holds `$KEY` — honouring `isSuperadmin`, because a
+   session token and show it only when the user holds `$KEY` — honoring `isSuperadmin`, because a
    superadmin has NO per-app grant row and gating on the grant list alone hides the tab from the one
    person entitled to every app. Fail CLOSED (Core unreachable → stay hidden), and cache the last
    answer so the tab does not pop in seconds late.

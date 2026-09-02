@@ -16,7 +16,7 @@
  * here rather than in the spoke.
  *
  * WHAT IT PINS: the retry BUDGET crossing the boundary. price-cards passes `{retries: max}` — 4 for
- * an action listed in POST_RETRY_SAFE, 0 for anything else — and this file proves postJSON honours
+ * an action listed in POST_RETRY_SAFE, 0 for anything else — and this file proves postJSON honors
  * both ends of that, including that an explicit 0 really means one attempt rather than being read as
  * falsy-so-use-the-default.
  *

@@ -228,7 +228,7 @@
 .gx-login-err{font-size:12px;color:var(--gx-red);min-height:1em;}
 
 /* ── Top nav ─────────────────────────────────────────────────────────────────────────────────────
-   One app header for the whole suite. Modelled on the two apps that already got their piece right:
+   One app header for the whole suite. Modeled on the two apps that already got their piece right:
    TABS are Inventory's treatment (inset box-shadow underline, so switching tabs shifts no layout, and
    the row scrolls horizontally with the scrollbar hidden), and the RIGHT CLUSTER is Leaderboard's
    clock. Settings / version / logout are NOT separate header items -- they live inside the user menu,
