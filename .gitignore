@@ -1,1 +1,5 @@
 .DS_Store
+
+# Deploy secret — never commit. Every other repo already ignores this; gx-theme did not,
+# so a secret dropped here would have been stageable.
+.gx_deploy_secret
