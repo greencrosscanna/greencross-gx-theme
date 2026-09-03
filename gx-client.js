@@ -218,21 +218,74 @@
       return run();
     }
 
+    /* A READ NEEDS A DEADLINE TOO — and this door shipped without one, for longer than the write did.
+     *
+     * TIMEOUT/LAST_TIMEOUT are jsonp's. postJSON got its own ceiling on 2026-09-02 when someone
+     * noticed nothing bounded a write. getJSON was never given one, so `await fetch(...)` waited as
+     * long as the connection stayed open: no progress, no cancel, no failure, nothing to retry.
+     *
+     * THAT IS NOT MERELY UNPROTECTED, IT IS MULTIPLIED. The retry loop below turns one unbounded
+     * attempt into RETRIES+1 of them in series — five by default. So "route your engine calls
+     * through the shared client" was, against a socket that accepts and never answers, actively
+     * worse than a bare fetch. Three sessions were giving that advice today, mine included.
+     *
+     * Measured 2026-09-03 in Sky's own browser: a bare fetch to a hung endpoint had still not settled
+     * after 7.5 seconds — no error, no rejected promise, nothing to catch. The row simply shimmered.
+     * That reached him as "Portland is stalling". Three of those in series is 22 seconds of shimmer
+     * where there was 7. GX Core's own probe recorded the server-side twin the same afternoon: a
+     * 24-second failure on a SINGLE redirect, so this is not only the content-key bounce.
+     *
+     * PER ATTEMPT, NOT PER LADDER. Bounding the whole ladder unblocks the caller but lets one hung
+     * attempt eat the entire budget, so the later attempts — the ones that would have succeeded —
+     * never run. The deadline has to end an ATTEMPT for a retry to mean anything.
+     *
+     * The ceiling is an OPTION rather than a constant because the right budget depends on the
+     * caller's cadence, not on this file. A 60s auto-refresh is already a retry: sales gives a
+     * per-store fetch 2 attempts at 15s rather than 3 at 30s, because a long chain holds the
+     * in-flight guard that blocks the very poll which would have fixed it. Retrying harder there
+     * recovers slower. The default is deliberately generous — this exists to end an infinite wait,
+     * not to police latency, and a deadline that fires on a working request is worse than none.
+     *
+     * AbortController is guarded exactly as postJSON guards it: universal in the browsers this suite
+     * runs on, but under a test harness or an old WebView its absence must degrade to the previous
+     * behaviour rather than throw on the read path.
+     *
+     * THE RETRY RULE DOES NOT MOVE. A parsed body still returns, {ok:false} included; only a
+     * transport miss retries. An AbortError IS a transport miss, so it retries — but a refusal is
+     * well-formed JSON, resolves on the first attempt, and never will. */
+    var GET_TIMEOUT = defaults.getTimeoutMs != null ? defaults.getTimeoutMs : 20000;
+
     // fetch variant: detects the Drive HTML page (body isn't JSON) and retries. For same-origin or
     // CORS-enabled endpoints; for cross-origin GX Core GETs use jsonp() (no CORS headers there).
     async function getJSON(action, params, opts) {
       if (global.GXDev) global.GXDev.check(action);   // dev write-guard; inert in production
       opts = opts || {};
       var retries = opts.retries != null ? opts.retries : RETRIES;
+      var getTimeoutMs = opts.timeoutMs != null ? opts.timeoutMs : GET_TIMEOUT;
       var lastErr;
       for (var a = 0; a <= retries; a++) {
         if (a) await sleep(BACKOFF * a);
+        var ctl = null, killer = null;
         try {
-          var res = await fetch(buildUrl(action, params, { _ts: String(Date.now()) + '_' + a }), { redirect: 'follow' });
+          var init = { redirect: 'follow' };
+          if (typeof AbortController === 'function') {
+            ctl = new AbortController();
+            init.signal = ctl.signal;
+            /* Armed across the BODY READ as well, not just the fetch. A response whose headers
+               arrive and whose body never finishes streaming hangs identically, and aborting only
+               the fetch would leave that hole exactly where the Drive-HTML miss lives. Cleared in
+               `finally`, so a fast attempt never leaves a timer pending. */
+            killer = setTimeout(function () { try { ctl.abort(); } catch (e) {} }, getTimeoutMs);
+          }
+          var res = await fetch(buildUrl(action, params, { _ts: String(Date.now()) + '_' + a }), init);
           var text = (await res.text()).trim();
           if (text && (text.charAt(0) === '{' || text.charAt(0) === '[')) return JSON.parse(text);
           lastErr = new Error('non-JSON body (HTTP ' + res.status + ') — Drive HTML page');
-        } catch (e) { lastErr = e; }
+        } catch (e) {
+          lastErr = (e && e.name === 'AbortError')
+            ? new Error('get timed out after ' + getTimeoutMs + 'ms')
+            : e;
+        } finally { if (killer) clearTimeout(killer); }
       }
       throw new Error('GX getJSON "' + action + '" failed after ' + (retries + 1) + ' tries: ' + (lastErr && lastErr.message));
     }
