@@ -15,9 +15,14 @@ cd "$(dirname "$0")"
 APP="__APP__"
 FAIL=0
 # Files we ship. Exclude the shared tooling, which legitimately contains these words.
+# serve.js joins serve.py here for the same reason: both print a localhost URL on startup, which the
+# hard 'localhost URL in shipped code' check below would otherwise fail. spiff shipped serve.js with
+# the scheme deliberately OMITTED to avoid needing --no-verify (which switches off every other check
+# with it) and left an instruction to restore it once exempted. Adding it here is that exemption.
+#
 # NOTE '*.gs'. Until 2026-08-29 this glob was html/js/css only, so Apps Script backends — where every
 # spoke keeps its credentials and its POS plumbing — were invisible to EVERY check below.
-FILES="$(git ls-files '*.html' '*.js' '*.css' '*.gs' 2>/dev/null | grep -vE '^(gx-dev\.js|gx-preflight\.sh|serve\.py)$' || true)"
+FILES="$(git ls-files '*.html' '*.js' '*.css' '*.gs' 2>/dev/null | grep -vE '^(gx-dev\.js|gx-preflight\.sh|serve\.py|serve\.js)$' || true)"
 [ -n "$FILES" ] || { echo "preflight: no shipped files found — skipping."; exit 0; }
 
 # flag <severity> <label> <grep-pattern> [keep-comments]
