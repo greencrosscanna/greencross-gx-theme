@@ -253,6 +253,24 @@
      * THE RETRY RULE DOES NOT MOVE. A parsed body still returns, {ok:false} included; only a
      * transport miss retries. An AbortError IS a transport miss, so it retries — but a refusal is
      * well-formed JSON, resolves on the first attempt, and never will. */
+    /* WHICH DIRECTION IS DANGEROUS: tightening this, not loosening it.
+     *
+     * 20s looks generous and is not. GX Core's probe splits caller-wait by whether the request
+     * bounced, and the two are different populations: a call that does NOT bounce still averages
+     * 12.2s against ~1.3s of actual execution, while a bounced one averages 89s. So twelve seconds
+     * is the ORDINARY case here, not the tail.
+     *
+     * That distinction cost a release the day this landed. sales v2.566 shipped a pace ceiling of 8s,
+     * set from the fast samples (2.2s, 3.9s) on the reasonable-sounding assumption that 12-17s was
+     * the tail. It is the middle. An 8s ceiling would have aborted a large share of perfectly healthy
+     * calls, the pace fractions would never have populated, and the day view would have sat
+     * permanently on its fallback ramp — a fallback that is fine for one poll cycle and wrong as a
+     * steady state. Corrected in v2.567 to one attempt at 20s.
+     *
+     * A ceiling set from the fast samples of a bimodal distribution is not conservative, it is an
+     * outage that looks like a working app. If you are tuning this, raise it or leave it; a caller
+     * making several of these in parallel wants MORE headroom, not less. The one number never worth
+     * copying is the one your own fast samples suggest. */
     var GET_TIMEOUT = defaults.getTimeoutMs != null ? defaults.getTimeoutMs : 20000;
 
     // fetch variant: detects the Drive HTML page (body isn't JSON) and retries. For same-origin or
