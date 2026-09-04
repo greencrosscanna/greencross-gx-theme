@@ -196,7 +196,35 @@
         var cb = '__gx_' + _nonce + '_' + Date.now() + '_' + (++_uid);
         var script = document.createElement('script');
         var done = false;
-        var cleanup = function () { done = true; try { delete global[cb]; } catch (e) { global[cb] = undefined; } script.remove(); clearTimeout(timer); };
+        /* AN ABANDONED ATTEMPT MUST NOT THROW WHEN IT FINALLY ARRIVES.
+         *
+         * cleanup() used to `delete global[cb]` outright. But abandoning a JSONP attempt does not
+         * cancel anything: the <script> is already in flight, GX Core is still executing, and when
+         * the response lands — seconds or a minute later — the browser evaluates `__gx_…({…})`
+         * against a global that is gone. That is an uncaught ReferenceError in the console of every
+         * app, one per abandoned attempt. Reported by the spiff session 2026-09-03 while testing
+         * its boot path, which is where it is most visible because those calls fire before anyone
+         * has clicked anything.
+         *
+         * It is noise rather than breakage — the promise already settled — but it is the kind of
+         * noise that trains people to ignore a red console, and it lands hardest exactly when
+         * something IS wrong, because that is when attempts get abandoned.
+         *
+         * So leave a TOMBSTONE instead: a no-op the late script can safely call. Removing the
+         * <script> tag does not stop a response already on the wire, so there has to be something
+         * there to receive it. The tombstone is swept later so this cannot grow without bound; the
+         * delay only needs to outlive the slowest attempt (LAST_TIMEOUT, 45s) plus the wait for a
+         * response that arrives after we stopped listening — 137s was measured on a five-redirect
+         * bounce, so 180s is the honest number rather than a round one.
+         *
+         * `done` is still what decides the outcome, so a late arrival cannot resolve a settled
+         * promise — the tombstone only stops it throwing. */
+        var cleanup = function () {
+          done = true;
+          global[cb] = function () {};
+          setTimeout(function () { try { delete global[cb]; } catch (e) { global[cb] = undefined; } }, 180000);
+          script.remove(); clearTimeout(timer);
+        };
         /* LABEL THE FAILURE, because two of them need opposite responses and this client used to
            treat them as one. A Drive-HTML second-hop miss answers INSTANTLY — retrying it at once is
            free and correct, and is why this client exists. A TIMEOUT means GX Core is loaded and has

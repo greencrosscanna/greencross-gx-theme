@@ -275,6 +275,52 @@ function drive(plan, extra) {
     ok(m && Number(m[1]) <= 30000, 'but not so large that a dead server holds the screen forever — got ' + (m && m[1]) + 'ms');
   }
 
+  console.log('\n12. AN ABANDONED ATTEMPT MUST NOT THROW WHEN IT FINALLY ARRIVES');
+  {
+    /* Abandoning a JSONP attempt cancels nothing — the <script> is in flight and GX Core is still
+       executing. cleanup() used to `delete global[cb]`, so when the response landed the browser
+       evaluated __gx_…({…}) against a missing global: an uncaught ReferenceError per abandoned
+       attempt. Reported by the spiff session 2026-09-03 from its boot path. Noise, not breakage —
+       but the kind that trains people to ignore a red console, and it lands hardest when something
+       IS wrong, because that is when attempts get abandoned. */
+    const d = drive('hang');
+    let threw = false;
+    try { await d.client.jsonp('stores'); } catch (e) { threw = true; }
+    ok(threw, 'the call still fails as before');
+
+    // Every attempt's callback name, straight out of the URLs the client actually requested.
+    const cbs = d.attempts.map(a => /[?&]callback=([^&]+)/.exec(a.url)[1]);
+    ok(cbs.length >= 2, 'several attempts were abandoned (' + cbs.length + ')');
+
+    let late = 0, threwLate = null;
+    cbs.forEach(function (cb) {
+      // This is the browser evaluating a response that arrived after we stopped listening.
+      try { global[cb]({ ok: true, arrived: 'late' }); late++; }
+      catch (e) { threwLate = e; }
+    });
+    ok(threwLate === null,
+       'a late response calls a live no-op instead of throwing — got ' + (threwLate && threwLate.name));
+    ok(late === cbs.length, `every abandoned callback is still callable (${late}/${cbs.length})`);
+  }
+
+  console.log('\n12b. the tombstone does not resolve a settled promise, and is swept');
+  {
+    // The danger of leaving something callable is that it might do something. It must not: `done`
+    // still decides the outcome, so a late arrival cannot revive a call that already failed.
+    const d = drive((i) => (i === 0 ? 'hang' : 'ok'));
+    const r = await d.client.jsonp('stores');
+    ok(r && r.ok === true && r.via === 1, 'the second attempt is what resolved the call');
+    const staleCb = /[?&]callback=([^&]+)/.exec(d.attempts[0].url)[1];
+    let boom = null;
+    try { global[staleCb]({ ok: true, via: 'STALE' }); } catch (e) { boom = e; }
+    ok(boom === null, 'the abandoned first attempt can still be called safely');
+    ok(r.via === 1, 'and calling it changed nothing — the settled result is untouched');
+
+    const src = require('fs').readFileSync(path.join(__dirname, '..', 'gx-client.js'), 'utf8');
+    ok(/setTimeout\(function \(\) \{ try \{ delete global\[cb\]/.test(src),
+       'the tombstone is swept on a timer, so it cannot grow without bound');
+  }
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })();
