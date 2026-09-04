@@ -247,6 +247,34 @@ function drive(plan, extra) {
        'and passes it to backoffFor, so the congestion jump cannot inflate the exponent');
   }
 
+  console.log('\n11. THE TIMEOUT BUDGET DOES NOT TAX THE MISS — which is what makes 20s cheap');
+  {
+    /* The whole justification for raising TIMEOUT from 8s to 20s is that the Drive-HTML miss is
+       detected by script.onerror, not by the clock. If that were ever to stop being true, a bigger
+       budget would silently make the suite's most common failure 20s slower each attempt — and
+       nothing else in this file would notice. So assert it directly, with an ABSURD budget: five
+       instant misses must still complete in well under one of them. */
+    const t0 = Date.now();
+    const d = drive('miss', { timeoutMs: 30000, lastTimeoutMs: 30000, backoffMs: 10, slowBackoffMs: 10 });
+    let threw = false;
+    try { await d.client.jsonp('stores'); } catch (e) { threw = true; }
+    const el = Date.now() - t0;
+    ok(threw && d.attempts.length === 5, 'five instant misses under a 30s budget still make 5 attempts');
+    ok(el < 1000, 'and cost ' + el + 'ms, not 5x30s — the miss never spends the timeout');
+    ok(d.client._congested() === false, 'instant misses do not read as a congested server at any budget');
+  }
+
+  console.log('\n11b. the shipped default clears the measured JSONP p95');
+  {
+    const src = require('fs').readFileSync(path.join(__dirname, '..', 'gx-client.js'), 'utf8');
+    const m = /var TIMEOUT\s*=\s*defaults\.timeoutMs\s*!=\s*null\s*\?\s*defaults\.timeoutMs\s*:\s*(\d+)/.exec(src);
+    ok(!!m, 'the default per-attempt timeout is declared where expected');
+    // Measured 2026-09-03: JSONP-shaped login answered 3.6-6.4s with spikes far beyond. 8s left ~2s
+    // of headroom over the median and failed on every ordinary spike.
+    ok(m && Number(m[1]) >= 15000, 'and is >= 15s — got ' + (m && m[1]) + 'ms (8s was under the real p95)');
+    ok(m && Number(m[1]) <= 30000, 'but not so large that a dead server holds the screen forever — got ' + (m && m[1]) + 'ms');
+  }
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })();

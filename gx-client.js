@@ -46,7 +46,34 @@
   function GXClient(baseUrl, defaults) {
     defaults = defaults || {};
     var RETRIES  = defaults.retries   != null ? defaults.retries   : 4;      // total attempts = RETRIES + 1
-    var TIMEOUT  = defaults.timeoutMs != null ? defaults.timeoutMs : 8000;   // per-attempt; a miss = no callback within this
+    /* 20s, NOT 8s — the budget has to clear the real p95 or it manufactures the failure it reports.
+     *
+     * THE TIMEOUT DOES NOT CATCH THE DRIVE-HTML MISS. That was the reasoning error behind 8s, and it
+     * is worth stating plainly because it inverts the trade-off: the second hop answering with an
+     * HTML page loads as a <script>, fails to parse, and fires script.onerror — INSTANTLY, via the
+     * gxSlow:false path in jsonpOnce. The miss retry this client exists for does not spend one
+     * millisecond of this budget and is completely unaffected by its size. This timeout governs one
+     * case only: GX Core is alive and has not answered yet. The correct response to that is to wait.
+     *
+     * MEASURED 2026-09-03, curl straight at GX Core /exec, action=login:
+     *   plain JSON     2.5  2.5  2.7  2.8s
+     *   WITH callback  3.6  4.5  4.6  6.4s      <- the JSONP shape every spoke frontend actually uses
+     *   and spiking    42s, and one returning the Drive HTML page
+     * 8s sat ~2s above the JSONP median. Any ordinary spike blew straight through it, so the client
+     * abandoned requests that were seconds from succeeding — and abandoning a JSONP attempt does NOT
+     * cancel the Apps Script execution: it keeps running, keeps its slot, and the next attempt queues
+     * behind the one just given up on. Retrying harder made it strictly worse.
+     *
+     * That is the "GX jsonp login failed after 5 tries" the crew and spiff sessions both reported on
+     * 2026-09-03. Sales was unaffected the whole time and it was not luck — Sales signs in through
+     * its OWN engine, which calls GXCore.login() as a library, so it never touches this path or GX
+     * Core's shared execution queue. Moving crew and spiff onto that pattern is the real fix; this
+     * is the honest budget until they get there.
+     *
+     * The cost is bounded and lands only on a server that never answers: a fully dead GX Core now
+     * takes ~131s to give up rather than ~103s. It fails either way. The case this buys is the one
+     * people actually hit — Core answering at 10-15s, which used to fail every attempt. */
+    var TIMEOUT  = defaults.timeoutMs != null ? defaults.timeoutMs : 20000;  // per-attempt; a miss = no callback within this
     /* THE LAST ATTEMPT WAITS PROPERLY, because two different failures were being treated as one.
      *
      * The Drive-HTML miss this client exists for is INSTANT — the second hop answers immediately
