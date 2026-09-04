@@ -93,6 +93,33 @@ sequence, kept fresh in the CC.
    <!-- @include _naming.md -->
    - **In flight** (`inFlight`: queued / working / in_review jobs) — surface these first and **do NOT
      re-dispatch or rebuild them**. If one is `in_review` with a PR, the next move is to review/merge it.
+   - **Open bugs** (`bugs`) — **broken behavior outranks a good idea.** These come back on the same
+     `whats_next` fetch, already ordered: `critical` and `high` first, then oldest within each severity.
+     `bugs_open` is the count and `bugs_serious` is how many are high/critical — lead with those numbers
+     when either is non-zero. Number them in the running list like anything else, and say the `title`;
+     the `id` is for the `bug_update` call, not the readout.
+
+     **Present them above `buildOrder`, below `inFlight`.** A bug is something already broken for a real
+     person, which beats a sequenced idea; but a job that is actually running still comes first, because
+     the point of listing it is to stop you starting it twice.
+
+     **ONE NUMBER PER BUG, NOT TWO.** Housekeeping in step 3 already listed open bugs for disposition,
+     and these are the SAME bugs — `whats_next` returns them so the work list is complete on its own,
+     not because they are new. Any bug you left open up there keeps the number it already has; say
+     "still open: `[2]`" rather than renumbering it. Same rule the In-flight/What's-next overlap follows,
+     for the same reason: a board that counts one item twice reads as twice the work.
+
+     Do **not** merge them into the build order or the backlog. A bug has no `task_gid` and no dispatch
+     state, and the backlog's whole meaning is "not now".
+
+     *Why these are here at all:* they used to appear in the cockpit and in the app's brain-notes inbox
+     but not in this list — the one an app chat actually reads to pick up work. Sky, 2026-09-03: "bugs
+     show up in cockpit, and they should show up as items to be resolved in /gxwhatsnext." That gap is
+     also why bugs ride the notes rail; a note was standing in for a work queue.
+
+     Closing one is `bug_update` with `status=resolved` — and that **also closes the linked brain note
+     automatically**, in both directions. Never close the note by hand to tidy the board: an open bug
+     with a closed note is the state nobody notices.
    - **What's next** (`buildOrder`) — the recommended build order for this app, and the answer to "what's
      next". Lead with the top item and its wave.
 
