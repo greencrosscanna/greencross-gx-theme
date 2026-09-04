@@ -198,6 +198,55 @@ function drive(plan, extra) {
        'the default ceiling is a generous 60s — this ends an infinite wait, it does not police latency');
   }
 
+  console.log('\n10. THE CONGESTION JUMP MUST NOT INFLATE THE BACKOFF (the 32-second dead wait)');
+  {
+    /* WHY THIS SECTION EXISTS, and why nothing above it could have caught the bug.
+     *
+     * Every drive() above passes slowBackoffMs: 10 to keep the suite fast. That is correct for what
+     * those sections assert — but it also means a 32x multiplier on the slow wait is 320ms, which no
+     * assertion here looks at. The suite was fully green for a full day while a stock client sat
+     * still for a median 32 SECONDS on every congested sign-in. A green gate is not a passing test:
+     * this one never measured the number that was wrong.
+     *
+     * THE BUG. backoffFor took the exponent from the ATTEMPT INDEX. When congestion trips, the jsonp
+     * loop skips the remaining fast attempts with `a = retries - 1`, and `a++` lands on a = 4 — so
+     * the FIRST slow wait was 4000 * 2^3 = 32000ms, +/-50% jitter = 16-48s, on top of ~26s of real
+     * attempts. Reported as "sign-in takes a minute" by the crew and spiff sessions, 2026-09-03.
+     *
+     * SO THIS SECTION ASSERTS THE WAIT ITSELF, in real milliseconds, at a REALISTIC slowBackoffMs.
+     * It is deliberately the slowest test in the file (~1s) — the alternative is not measuring the
+     * thing that broke. PROVEN AGAINST THE BUG: run this file at the commit before the fix and
+     * "the first slow wait is one SLOW_BACKOFF" fails with ~3200ms against a 400ms base. */
+    const d = drive((i) => (i < 3 ? 'hang' : 'ok'), { timeoutMs: 40, lastTimeoutMs: 90, backoffMs: 10, slowBackoffMs: 400 });
+    await d.client.jsonp('stores');
+    ok(d.client._congested() === true, 'the run of timeouts did trip congestion (otherwise this proves nothing)');
+
+    // Gap from the LAST fast attempt to the patient one — that is the wait the congestion jump sets.
+    const gaps = d.attempts.slice(1).map((a, i) => a.t - d.attempts[i].t);
+    const slowGap = gaps[gaps.length - 1];
+    // One SLOW_BACKOFF (400ms) +/-50% jitter, plus the 40ms budget the timing-out attempt burned.
+    ok(slowGap < 400 * 1.5 + 120,
+       'the first slow wait is one SLOW_BACKOFF, not 2^3 of them — got ' + slowGap + 'ms, ceiling ' + Math.round(400 * 1.5 + 120) + 'ms');
+    ok(slowGap > 400 * 0.5 - 20,
+       'and it still actually waits — got ' + slowGap + 'ms (a slow path with no backoff is the retry storm again)');
+  }
+
+  console.log('\n10b. the slow backoff is CAPPED — doubling must not become a hang');
+  {
+    const src = require('fs').readFileSync(path.join(__dirname, '..', 'gx-client.js'), 'utf8');
+    ok(/SLOW_BACKOFF_MAX/.test(src) && /Math\.min\(\s*SLOW_BACKOFF\s*\*\s*Math\.pow\(2,\s*slowWaits/.test(src),
+       'backoffFor clamps the exponential to SLOW_BACKOFF_MAX');
+    /* Assert on the CALL SHAPE, not on the absence of the old expression. The first cut of this
+       check was `!/Math\.pow\(2, attempt - 1\)/` and it failed against the fixed file — because the
+       comment above backoffFor QUOTES the old code to explain what was wrong with it. A source-text
+       gate that cannot tell code from prose about code is the same class of false signal this whole
+       section exists to close; it would have gone green again the moment someone deleted the
+       comment. What actually matters is that the loop threads its own counter through. */
+    ok(/slowWaits\s*\+\+/.test(src), 'the loop increments a slow-wait counter');
+    ok(/backoffFor\(\s*a\s*,\s*slow\s*,\s*slowWaits\s*\)/.test(src),
+       'and passes it to backoffFor, so the congestion jump cannot inflate the exponent');
+  }
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })();

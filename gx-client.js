@@ -91,9 +91,29 @@
     // screenshot through the two-hop redirect is legitimately slow, and this is here to end an
     // unbounded wait, not to enforce a latency budget.
     var POST_TIMEOUT = defaults.postTimeoutMs != null ? defaults.postTimeoutMs : 60000;
+    /* THE SLOW EXPONENT COUNTS SLOW WAITS, NOT ATTEMPTS — and that distinction is the whole fix.
+     *
+     * Until 2026-09-03 this read `SLOW_BACKOFF * Math.pow(2, attempt - 1)`, using the ATTEMPT INDEX.
+     * That is fine only while the index advances one step at a time. It does not: when congestion
+     * trips, the jsonp loop below skips the remaining fast attempts with `a = retries - 1`, and the
+     * loop's own `a++` lands on a = 4. So the FIRST slow wait was computed as 4000 * 2^3 = 32000ms,
+     * +/-50% jitter = 16-48s, before the patient 45s attempt had even started. The comment above
+     * says the intent is to back off "from a much higher base" — 4s. The code delivered 32s.
+     *
+     * Measured cost on a cold sign-in with stock defaults: ~26s of real attempts followed by ~32s of
+     * the browser sitting completely still. That is most of the "sign-in takes a minute" both the
+     * crew and spiff sessions reported on 2026-09-03, and it is entirely self-inflicted — the server
+     * was never asked for anything during those 32 seconds.
+     *
+     * `slowWaits` is how many slow waits have ALREADY been taken, so the first is 2^0 = SLOW_BACKOFF
+     * exactly. The cap matters as much as the exponent: unbounded doubling is how a wait that is
+     * supposed to be polite becomes a hang nobody can distinguish from a dead app. */
+    var SLOW_BACKOFF_MAX = defaults.slowBackoffMaxMs != null ? defaults.slowBackoffMaxMs
+                         : Math.max(SLOW_BACKOFF, 16000);
     var JITTER = 0.5;                                        // +/- 50% of the computed wait
-    function backoffFor(attempt, slow) {
-      var base = slow ? SLOW_BACKOFF * Math.pow(2, attempt - 1) : BACKOFF * attempt;
+    function backoffFor(attempt, slow, slowWaits) {
+      var base = slow ? Math.min(SLOW_BACKOFF * Math.pow(2, slowWaits || 0), SLOW_BACKOFF_MAX)
+                      : BACKOFF * attempt;
       var spread = base * JITTER;
       return Math.round(base - spread + Math.random() * 2 * spread);
     }
@@ -185,9 +205,11 @@
       var timeoutMs = opts.timeoutMs != null ? opts.timeoutMs : TIMEOUT;
       var lastTimeoutMs = opts.lastTimeoutMs != null ? opts.lastTimeoutMs : LAST_TIMEOUT;
       var run = async function () {
-        var lastErr, slow = false;
+        var lastErr, slow = false, slowWaits = 0;
         for (var a = 0; a <= retries; a++) {
-          if (a) await sleep(backoffFor(a, slow));
+          // slowWaits counts the slow waits ACTUALLY TAKEN, so the congestion jump below cannot
+          // inflate the exponent. See backoffFor.
+          if (a) { await sleep(backoffFor(a, slow, slowWaits)); if (slow) slowWaits++; }
           // The final attempt gets the patient budget — by now the instant-miss theory is spent,
           // and what is left looks like a cold start that simply needs longer.
           var budget = (a === retries) ? Math.max(timeoutMs, lastTimeoutMs) : timeoutMs;
