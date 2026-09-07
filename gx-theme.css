@@ -265,6 +265,32 @@
 /* Inventory's tab treatment, verbatim in behavior: underline via inset shadow (no layout shift),
    flex-shrink:0 so labels never squash, horizontal scroll with the scrollbar hidden. */
 .gx-topnav-tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;min-width:0;}
+/* A vertical rule between the app name and the first tab (Sky, 2026-09-07).
+   GUARDED BY THE ADJACENT SIBLING, so no app needs an HTML change and none gets a dangling rule: it
+   draws only where tabs actually follow the brand. Price Cards has a brand and NO tabs -- its next
+   sibling is .topbar-meta -- so it correctly gets nothing. Verified in the browser by building that
+   exact markup and reading the computed background back: `none`.
+   DRAWN AS A BACKGROUND, NOT A ::before INSIDE THE BOX: .gx-topnav-tabs scrolls horizontally, and a
+   pseudo-element inside it would slide out of view with the tabs. A background is painted against the
+   element (background-attachment defaults to `scroll`, meaning fixed to the box, not to its scrolled
+   content) -- measured by scrolling the tab strip and confirming the rule did not move.
+   18px tall rather than full height: the header is 52px and a full-height divider reads as a panel
+   edge, which is a heavier statement than "these are two groups".
+   padding-left is 4px, not 14: .gx-topnav-tab carries 12px of its own, so 14 here put the rule 14px
+   from the app name and 26px from the first tab's TEXT -- measured, and visibly off-centre. 4 + 12
+   lands the text at 16px against 14px on the name side.
+
+   ONLY ON A WIDE VIEWPORT, and this is the real constraint rather than a preference. .gx-topnav is
+   `flex-wrap: wrap`: below its wrap point the tab strip drops to its own row, where a rule at the
+   far left separates nothing and reads as a stray tick. There is no CSS way to ask "did my previous
+   sibling stay on my line", so the wrap point is approximated by width. 1000px is chosen to clear the
+   phone and tablet cases outright; an app with MANY tabs (Inventory has ten) can still wrap in a
+   narrow desktop window and show the rule leading its row. That is the known cost of the
+   approximation, and it is a stray hairline rather than anything broken. */
+@media (min-width: 1000px) {
+  .gx-topnav-brand + .gx-topnav-tabs{padding-left:4px;
+    background:linear-gradient(var(--gx-border-strong),var(--gx-border-strong)) left center/1px 18px no-repeat;}
+}
 .gx-topnav-tabs::-webkit-scrollbar{display:none;}
 /* Sentence case, following Inventory's tabs. Weight 700, not the 500 an isolated mock suggested:
    every app sets -webkit-font-smoothing:antialiased via .gx-app, which renders text visibly lighter
