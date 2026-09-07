@@ -321,6 +321,109 @@ function drive(plan, extra) {
        'the tombstone is swept on a timer, so it cannot grow without bound');
   }
 
+  /* ── 13. getJSON GETS THE SAME TREATMENT — 2026-09-07 ────────────────────────────────────────
+   *
+   * Everything above is about jsonp(). getJSON() — the fetch variant every same-origin and
+   * CORS-enabled engine read goes through — still waited `BACKOFF * a`: linear, identical in every
+   * browser, the exact lockstep wave §2 exists to prevent. It also reported nothing to
+   * noteOutcome(), so an app whose reads all go through this path could hammer a timing-out server
+   * indefinitely and congested() would never see one timeout. _recent is shared by the whole
+   * client, which makes that a hole in the signal for jsonp() too, not just for getJSON.
+   *
+   * Driven through a fake `fetch`, mirroring drive() above:
+   *   'ok'   — a JSON body
+   *   'miss' — a 200 whose body is Google's Drive HTML page (the instant second-hop miss)
+   *   'hang' — never answers; only our own AbortController ends it (a loaded server)
+   */
+  function driveGet(plan, extra) {
+    const attempts = [];
+    global.fetch = function (url, init) {
+      const i = attempts.length;
+      attempts.push({ t: Date.now(), url: url });
+      const mode = typeof plan === 'function' ? plan(i) : plan;
+      return new Promise(function (resolve, reject) {
+        if (mode === 'ok')   return resolve({ status: 200, text: async () => JSON.stringify({ ok: true, via: i }) });
+        if (mode === 'miss') return resolve({ status: 200, text: async () => '<!DOCTYPE html><html>Drive</html>' });
+        // 'hang': answer never comes. The client's own deadline is what ends it.
+        if (init && init.signal) init.signal.addEventListener('abort', function () {
+          const e = new Error('aborted'); e.name = 'AbortError'; reject(e);
+        });
+      });
+    };
+    // getTimeoutMs, not timeoutMs: getJSON's budget is GET_TIMEOUT, a separate default from
+    // jsonp's TIMEOUT. Passing the wrong one leaves every 'hang' attempt on the real 20s.
+    const c = GXClient(BASE, Object.assign({ getTimeoutMs: 40, backoffMs: 10 }, extra || {}));
+    return { attempts, client: c };
+  }
+
+  console.log('\n13. getJSON: the miss still retries five times');
+  {
+    // The §1 rule, restated for this path. Damping congestion must never cost the miss retry that
+    // is the entire reason this client exists.
+    const d = driveGet('miss');
+    let threw = false;
+    try { await d.client.getJSON('stores'); } catch (e) { threw = true; }
+    ok(threw, 'five misses reject rather than resolving with the HTML page');
+    ok(d.attempts.length === 5, 'and it really tried 5 times — got ' + d.attempts.length);
+  }
+
+  console.log('\n14. getJSON: a LOADED core is damped, not hammered');
+  {
+    const d = driveGet('hang', { getTimeoutMs: 20 });
+    let threw = false;
+    try { await d.client.getJSON('stores'); } catch (e) { threw = true; }
+    ok(threw, 'a server that never answers still fails the call');
+    ok(d.attempts.length < 5,
+       'but it stops short of five attempts once congestion trips — got ' + d.attempts.length);
+  }
+
+  console.log('\n15. getJSON feeds the SHARED congestion window');
+  {
+    // The quiet half of the bug: getJSON recorded nothing, so timeouts on this path were invisible
+    // to every other call the same client made. Prove the signal crosses paths — time out through
+    // getJSON, then watch jsonp() arrive already damped.
+    const attempts = [];
+    global.fetch = function (url, init) {
+      attempts.push(url);
+      return new Promise(function (_, reject) {
+        if (init && init.signal) init.signal.addEventListener('abort', function () {
+          const e = new Error('aborted'); e.name = 'AbortError'; reject(e);
+        });
+      });
+    };
+    const d = drive('miss', { timeoutMs: 20, getTimeoutMs: 20, backoffMs: 5 });  // jsonp: instant misses
+    try { await d.client.getJSON('stores'); } catch (e) {}      // fills _recent with timeouts
+    const before = d.attempts.length;
+    try { await d.client.jsonp('stores'); } catch (e) {}
+    const jsonpTries = d.attempts.length - before;
+    ok(jsonpTries < 5,
+       'jsonp is damped by timeouts getJSON saw — got ' + jsonpTries + ' attempts');
+  }
+
+  console.log('\n16. getJSON: the wait is JITTERED, not the old linear BACKOFF * a');
+  {
+    /* Deterministic rather than statistical: pin Math.random to each end of its range and read the
+       gap. Linear would give exactly BACKOFF at both ends; jitter gives base ± 50%. Measuring
+       "the gaps differ" instead would prove nothing — timer noise makes them differ anyway. */
+    const realRandom = Math.random;
+    const firstGap = async (rnd) => {
+      Math.random = () => rnd;
+      const d = driveGet('miss', { backoffMs: 60, retries: 1 });
+      try { await d.client.getJSON('stores'); } catch (e) {}
+      return d.attempts[1].t - d.attempts[0].t;
+    };
+    const low = await firstGap(0), high = await firstGap(1);
+    Math.random = realRandom;
+    ok(low < 48, `at the bottom of the jitter range the wait is well under BACKOFF — ${low}ms vs 60ms`);
+    ok(high > 72, `at the top it is well over — ${high}ms vs 60ms`);
+    ok(high - low > 40, `and the spread is real — ${high - low}ms apart`);
+
+    const src = require('fs').readFileSync(path.join(__dirname, '..', 'gx-client.js'), 'utf8');
+    const getJson = src.slice(src.indexOf('async function getJSON'), src.indexOf('// ── POST variant'));
+    ok(!/sleep\(BACKOFF \* a\)/.test(getJson), 'the linear sleep is gone from getJSON');
+    ok(/backoffFor\(a, slow, slowWaits\)/.test(getJson), 'and it uses the shared backoff, slow path included');
+  }
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })();

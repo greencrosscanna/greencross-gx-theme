@@ -357,10 +357,37 @@
       opts = opts || {};
       var retries = opts.retries != null ? opts.retries : RETRIES;
       var getTimeoutMs = opts.timeoutMs != null ? opts.timeoutMs : GET_TIMEOUT;
-      var lastErr;
+      /* THE SAME BACKOFF AND THE SAME CONGESTION SIGNAL AS jsonp() — 2026-09-07.
+       *
+       * This loop still waited `BACKOFF * a`: linear, and IDENTICAL in every browser. That is
+       * verbatim the "old wait" the comment on backoffFor describes as the problem it was written
+       * to fix — every open tab retrying at the same 600/1200/1800ms offsets and arriving as one
+       * synchronized wave, which is the worst shape for a server already behind. jsonp() was fixed
+       * on 2026-09-02 and 09-03; this path was simply never revisited, so the jitter, the slow
+       * exponent and the congestion damping all stopped at the door.
+       *
+       * It also reported NOTHING to noteOutcome(), which is the quieter half. _recent is shared by
+       * every call this client makes, so a page whose reads go through getJSON — a same-origin or
+       * CORS-enabled engine — could hammer a timing-out server all day and congested() would never
+       * see a single timeout. The window was blind to whole apps.
+       *
+       * WHAT COUNTS AS SLOW HERE, because the distinction is the one the 09-02 second pass turned
+       * on: an AbortError means our own deadline expired with no answer — that is the timeout
+       * congestion is measured in. A body that arrives and is not JSON is the Drive-HTML miss, and
+       * a miss is evidence the server ANSWERED. Counting it as congestion would dampen the retry
+       * this client exists to perform, which is exactly the inversion that cut the budget by 60%
+       * the first time round.
+       *
+       * NOT COPIED FROM jsonp: its patient final attempt. Every attempt here shares one budget, and
+       * GET_TIMEOUT's own comment is emphatic that a ceiling tuned from fast samples of a bimodal
+       * distribution is an outage wearing a working app's clothes. Changing that number is a
+       * separate decision with its own evidence; this change is the backoff and the signal. */
+      var lastErr, slow = false, slowWaits = 0;
       for (var a = 0; a <= retries; a++) {
-        if (a) await sleep(BACKOFF * a);
-        var ctl = null, killer = null;
+        // slowWaits counts the slow waits ACTUALLY TAKEN, so the congestion skip below cannot
+        // inflate the exponent — the bug that turned a 4s first slow wait into 32s. See backoffFor.
+        if (a) { await sleep(backoffFor(a, slow, slowWaits)); if (slow) slowWaits++; }
+        var ctl = null, killer = null, timedOut = false;
         try {
           var init = { redirect: 'follow' };
           if (typeof AbortController === 'function') {
@@ -374,13 +401,27 @@
           }
           var res = await fetch(buildUrl(action, params, { _ts: String(Date.now()) + '_' + a }), init);
           var text = (await res.text()).trim();
-          if (text && (text.charAt(0) === '{' || text.charAt(0) === '[')) return JSON.parse(text);
+          if (text && (text.charAt(0) === '{' || text.charAt(0) === '[')) {
+            // Parse BEFORE recording the outcome: a body that opens like JSON and is not is a real
+            // error, and it must be counted once, by the catch, rather than twice.
+            var parsed = JSON.parse(text);
+            noteOutcome(false);
+            return parsed;
+          }
           lastErr = new Error('non-JSON body (HTTP ' + res.status + ') — Drive HTML page');
+          noteOutcome(false);                    // it answered, just with the miss page — not congestion
         } catch (e) {
-          lastErr = (e && e.name === 'AbortError')
+          timedOut = (e && e.name === 'AbortError') === true;
+          lastErr = timedOut
             ? new Error('get timed out after ' + getTimeoutMs + 'ms')
             : e;
+          noteOutcome(timedOut);
         } finally { if (killer) clearTimeout(killer); }
+        /* Decided by congested() — a RUN of timeouts across this client's recent calls — never by
+           this one attempt. One slow second hop is an unlucky miss far more often than it is a
+           loaded server, and damping on it is what blanked widgets in front of staff. */
+        slow = congested();
+        if (slow && a < retries - 1) a = retries - 1;
       }
       throw new Error('GX getJSON "' + action + '" failed after ' + (retries + 1) + ' tries: ' + (lastErr && lastErr.message));
     }
