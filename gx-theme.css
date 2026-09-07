@@ -276,10 +276,10 @@
    content) -- measured by scrolling the tab strip and confirming the rule did not move.
    18px tall rather than full height: the header is 52px and a full-height divider reads as a panel
    edge, which is a heavier statement than "these are two groups".
-   COLOURED --gx-text-mute, NOT --gx-border-strong. The border token is what dividers use elsewhere,
+   COLORED --gx-text-mute, NOT --gx-border-strong. The border token is what dividers use elsewhere,
    and it is invisible here: measured against the topnav's own darker surface (#121715) it lands at
    1.48:1, so the rule shipped correct and unseeable — Sky looked at the live page and found nothing
-   there. --gx-text-mute is 3.14:1, clearing the 3:1 floor for non-text, and is the same colour as
+   there. --gx-text-mute is 3.14:1, clearing the 3:1 floor for non-text, and is the same color as
    .gx-topnav-sub beside it, so the divider reads at the weight of the label rather than competing
    with the active tab. Checking a computed style proves a rule APPLIED; it does not prove anyone can
    see it, and only looking does.
