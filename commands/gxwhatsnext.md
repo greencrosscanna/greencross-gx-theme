@@ -23,7 +23,12 @@ sequence, kept fresh in the CC.
    **Every housekeeping call below is secret-gated** — `dev_queue`, `dev_delete`, `dev_ship`, `notes`,
    `resolve_note`, `bugs`, `bug_update`, `purge_notes`. Send
    `--data-urlencode "secret=$(cat .gx_deploy_secret)"` on all of them. Omit it and you get
-   `{"ok":false,"error":"bad deploy secret"}`, which reads like a WRONG secret rather than a missing one.
+   `{"ok":false,"error":"missing deploy secret — send secret=$(cat .gx_deploy_secret)"}`; send the wrong
+   one and you get `{"ok":false,"error":"bad deploy secret"}`. *(Corrected 2026-09-08: this said BOTH
+   cases returned "bad deploy secret" and warned that a missing secret reads like a wrong one. Core
+   has told them apart for a while — verified against the live routes. The warning was about a
+   confusion the code already prevents, which is worse than no warning: it sends whoever hits it
+   hunting for a secret rotation that never happened.)*
    - **Lingering done jobs** (`action=dev_queue`, filter to this app): a `done` job still in the queue →
      `dev_delete&id=…` to clear it; an `in_review` job whose PR is merged → `dev_ship&id=…`. Never leave
      finished work sitting `working`. *(Count cleared/shipped.)*
