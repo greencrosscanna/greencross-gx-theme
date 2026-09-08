@@ -60,7 +60,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '24'
 
       # The SAME script the pre-push hook runs, not a reimplementation. A second copy of the gate
       # drifts from the real one and starts disagreeing with local results, which is how people learn
