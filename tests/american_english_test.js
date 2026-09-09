@@ -82,6 +82,42 @@ console.log('\n2. it stays quiet — the direction that decides whether anyone k
   ok(`the deliberately-omitted words stay quiet (${quiet}/${allowed.length})`, quiet === allowed.length);
 }
 {
+  /* THE STEM IS NOT THE WORD. Every entry used to be a bare substring test, so "optimis" reported a
+     British spelling inside "optimistic" -- which is how it is spelled in American English too. It
+     blocked a real push in greencross-crew on 2026-09-08 (the attendance-lag fix, whose test file is
+     named tests/incentive_optimistic_test.js) and the author bypassed the whole hook with --no-verify,
+     skipping the credential scan and the tests along with it.
+
+     That is the one failure mode this gate cannot survive: every other entry names a word that really
+     is British, so obeying the gate improves the text. Here obeying it would have produced
+     "optimiztic". A rule a correct author cannot satisfy gets bypassed habitually, and then it is not
+     a gate. The same substring shape hid three more, found by sweeping the rest of the list. */
+  const correctAmerican = [
+    ['optimistic — the live false positive',  '// an optimistic read of the attendance lag'],
+    ['optimism / optimist',                   '// cautious optimism from the optimist in the room'],
+    ['organism — "organis" is inside it',      '// the suite behaves like a single organism'],
+    ['organist',                              '// the organist plays on Sundays'],
+    ['apologist',                             '// not an apologist for the old design'],
+    ['analyses — American plural of analysis','// the analyses agree'],
+  ];
+  let quiet = 0;
+  correctAmerican.forEach(([why, line]) => { if (run(diff([line])).code === 0) quiet++;
+                                             else console.log('       falsely flagged: ' + why); });
+  ok(`correct American words containing a British stem are NOT flagged (${quiet}/${correctAmerican.length})`,
+     quiet === correctAmerican.length);
+}
+{
+  // The other half of the same change: narrowing the stems must not let the real British forms
+  // through. These are the endings that make a stem genuinely British.
+  const british = ['optimise', 'optimised', 'optimising', 'optimisation', 'organise', 'organisation',
+                   'organisational', 'organiser', 'apologise', 'apologised', 'recognisable',
+                   'analysed', 'analysing', 'utilisation', 'initialised', 'fulfilment'];
+  let caught = 0;
+  british.forEach(w => { if (run(diff([`// a comment that says ${w} in it`])).code === 1) caught++;
+                         else console.log('       missed: ' + w); });
+  ok(`the real British forms are still caught (${caught}/${british.length})`, caught === british.length);
+}
+{
   // Case: the word inside a longer identifier. `colourPicker` is a name, not prose — but this check
   // cannot tell, and flagging it is the safer error here because a NEW identifier is still ours to
   // spell correctly. Asserted so the behavior is a decision rather than a surprise.
