@@ -118,6 +118,17 @@ console.log('\n2. it stays quiet — the direction that decides whether anyone k
   ok(`the real British forms are still caught (${caught}/${british.length})`, caught === british.length);
 }
 {
+  /* WHAT THE TWO KINDS OF ENTRY DO TO IDENTIFIERS. Pinned because the comment in the checker got this
+     exactly backwards for a day and greencross-crew had to measure it to find out. Lines are
+     lowercased before matching, so an -ise STEM cannot reach inside camelCase; a PLAIN substring can.
+     Neither is a bug — leaving names alone is Sky's stated rule, and a new identifier being caught is
+     the deliberate call asserted just below — but the two differ, and an untested comment drifts. */
+  ok('an -ise stem does NOT reach inside a camelCase identifier (lowercased before matching)',
+     run(diff(['const optimiseData = 1;'])).code === 0);
+  ok('...not even as a function name', run(diff(['function summariseRow(){}'])).code === 0);
+  ok('but the same word in PROSE is still caught', run(diff(['// please optimise this'])).code === 1);
+}
+{
   // Case: the word inside a longer identifier. `colourPicker` is a name, not prose — but this check
   // cannot tell, and flagging it is the safer error here because a NEW identifier is still ours to
   // spell correctly. Asserted so the behavior is a decision rather than a surprise.
