@@ -4,6 +4,32 @@ Sessions usually resolve with that kind of language on their own; the explicit o
 actually get shipped and cleared from the Command Center. Shipping auto-completes the Asana to-do. Don't
 leave a finished task sitting `working`.
 
+**A GREEN LOCAL GATE IS NOT A GREEN BUILD — LOOK AT THE RUN.** (Found 2026-09-09.) Every push to
+`greencross-command-center` failed CI that day and nobody noticed, because the pre-push hook was
+green each time. The PR for the dev-session route was **merged red**. The two gates are different by
+design — the hooks are fast local feedback, CI is what makes them true — but nothing made anyone
+LOOK, and a local green reads as done.
+
+The failure was environment, not code: a test built a scratch repo and assumed the branch was called
+`main`, which is true on a Mac and false on the runner. That bug is fixed. The process gap is what
+this closes.
+
+- **After you push, watch the run finish.** Same standard as verifying a deploy — a push you did not
+  watch is not shipped, it is sent.
+  ```sh
+  gh run watch "$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
+  ```
+  Then say the result in one line. If it failed, that is the task now — do not report the push as done.
+- **Never merge on a failing or missing check.** Missing counts: a PR with no run at all is not
+  passing, it is unproven, and that is the state a merge is most likely to slip through.
+  ```sh
+  gh pr checks <PR> --watch
+  ```
+  If it is red, fix it or tell Sky it is red and let him decide. Merging red is his call to make, never
+  yours to make quietly.
+- **`--no-verify` is not a way past this.** It skips the local hook; CI still runs and still fails.
+  Reaching for it means the check found something.
+
 **Then RE-LIST what's open, numbered — never propose a next task from memory.** Once the job is shipped
 (or `in_review` and genuinely out of your hands), do **not** say "want me to look at the store filter
 next?" — that item is whatever you happened to notice hours ago, and Sky is being asked to pick from a

@@ -14,6 +14,35 @@ cd "$(dirname "$0")"
 
 APP="__APP__"
 FAIL=0
+
+# ── SELF-HEAL: sweep this repo's orphaned preflight worktrees ────────────────────────────────────
+# 20 of these were found across the suite on 2026-09-09 — ~80MB, oldest 2026-08-29 — left by this
+# script and theme-preflight.sh. Both create a sibling worktree to test HEAD and remove it in a trap,
+# but a run killed outright (a canceled push, a closed terminal) never reaches the trap. Left alone
+# they accumulate in the parent folder, sync to every machine over Dropbox, and get picked up by any
+# grep across the suite — one of them polluted a dependency audit before anyone noticed.
+#
+# Sweeping at START rather than only trusting cleanup at END is what makes this self-correcting. It
+# is why the hub's run-tests.sh has had zero .gxruntests-* orphans since it adopted the same fix on
+# 2026-08-30, while these two scripts kept accumulating them for eleven days.
+#
+# TWO GUARDS run-tests.sh DOES NOT NEED, AND THIS SCRIPT DOES. That one is hub-only, so its blind
+# `../.gxruntests-*` glob can only ever match worktrees it made itself. This script is synced into
+# SEVEN repos that push concurrently:
+#   • SCOPE TO THIS REPO'S PREFIX. A bare ../.gxpreflight-* glob would let a sales push delete the
+#     worktree a crew push is running its tests inside — turning the self-heal into the outage.
+#   • SKIP A LIVE PID. The suffix is $$. If that process still exists, a concurrent preflight in
+#     THIS repo owns the worktree. A recycled pid only means a dead one survives to the next run,
+#     which is the safe direction to be wrong in.
+_mine="../.gxpreflight-$(basename "$PWD")-"
+git worktree prune >/dev/null 2>&1 || true
+for _stale in "$_mine"*; do
+  [ -d "$_stale" ] || continue
+  if kill -0 "${_stale##*-}" 2>/dev/null; then continue; fi   # a concurrent preflight owns it
+  git worktree remove --force "$_stale" >/dev/null 2>&1 || true
+  if [ -d "$_stale" ]; then rm -rf "$_stale"; fi
+done
+git worktree prune >/dev/null 2>&1 || true
 # Files we ship. Exclude the shared tooling, which legitimately contains these words.
 # serve.js joins serve.py here for the same reason: both print a localhost URL on startup, which the
 # hard 'localhost URL in shipped code' check below would otherwise fail. spiff shipped serve.js with

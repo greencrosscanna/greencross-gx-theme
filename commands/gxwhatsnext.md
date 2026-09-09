@@ -115,7 +115,8 @@ sequence, kept fresh in the CC.
      for the same reason: a board that counts one item twice reads as twice the work.
 
      Do **not** merge them into the build order or the backlog. A bug has no `task_gid` and no dispatch
-     state, and the backlog's whole meaning is "not now".
+     state, and the backlog is where unsequenced work lands — which is **not** the same as "not now"
+     (see `since_digest` below), but is still the wrong shelf for something already broken.
 
      *Why these are here at all:* they used to appear in the cockpit and in the app's brain-notes inbox
      but not in this list — the one an app chat actually reads to pick up work. Sky, 2026-09-03: "bugs
@@ -141,10 +142,34 @@ sequence, kept fresh in the CC.
 
      If `buildOrder` is empty (no digest yet, nothing dispatched, and none of this app's items are
      sequenced), fall back to the app's open **`backlog`** (Asana order) and say so.
+   - **Filed since the digest ran** (`backlog` rows with `since_digest: true`, counted by `unsequenced`) —
+     **surface these ABOVE the rest of the backlog and number them like anything else.**
+
+     **"Not sequenced" is not "not important".** An item is missing from `buildOrder` for one of two
+     completely different reasons: the digest weighed it and put it late, or the digest *never saw it*
+     because it was filed afterwards. Those look identical in the payload and read identically to Sky,
+     and one of them is the freshest work on the board. `since_digest` is the only thing that tells
+     them apart — use it.
+
+     *This is a corrected failure, 2026-09-09.* Four follow-ups filed at 18:40 were read back that
+     evening as a comma-separated tail under "backlog, unsequenced", beneath two items a 03:01 digest
+     had ranked. Sky had to ask where they were. **Nothing was stale** — Asana is fetched live on every
+     call, and all four came back correctly in the same response. The data was current; the
+     presentation inherited a stale ordering. So do not "fix" this by regenerating the digest: the
+     digest is not what was wrong, and `ai_strategy` is still off-limits here.
+
+     Say it in one line when the count is non-zero — *"four filed since this morning's digest, so
+     nothing has sequenced them yet"* — then list them. Do NOT bury them in a run-on line of titles;
+     a numbered item is one Sky can act on, a comma-separated tail is one he cannot see.
    - **Cross-app priorities** (`priorities`) that touch this app — mention briefly if present.
    - **Flag a stale digest.** Since we no longer regenerate it, check `digest_at` in the response: if it's more
      than a day old (or `has_digest` is false), say so in one line — "digest is from <date>; regen in the
      cockpit if the order looks off" — so Sky knows the sequence may not reflect recently-closed work.
+
+     **A stale digest never means stale DATA.** To-dos, bugs and in-flight jobs are fetched live on
+     every call; the digest only orders `buildOrder`. So the honest sentence is "the ordering is from
+     <date>", never "the board may be out of date" — and anything filed since then is already flagged
+     by `since_digest` rather than hidden by the age of the digest.
 5. **Offer to start the top item right here.** If Sky says go:
    - **Rename this chat to the task, immediately** — do this first, before any other tool call, so the session
      is identifiable in the session list from the moment work starts. Call `set_session_title` with

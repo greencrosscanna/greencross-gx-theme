@@ -10,6 +10,23 @@ set -eu
 cd "$(dirname "$0")"
 FAIL=0
 
+# ── SELF-HEAL: sweep orphaned theme-preflight worktrees ──────────────────────────────────────────
+# Same fix, same reason as gx-preflight.sh: three .gxthemepreflight-* worktrees were among the 20
+# orphans found on 2026-09-09, the oldest from 2026-08-29 and two of them 40MB each. The trap below
+# removes the worktree on a normal exit; a killed run never reaches it.
+#
+# Only gx-theme runs this script, so the prefix needs no repo scoping — but the LIVE-PID guard still
+# matters, because two sessions can push this repo at once and the loser would otherwise delete the
+# worktree the winner is testing inside.
+git worktree prune >/dev/null 2>&1 || true
+for _stale in ../.gxthemepreflight-*; do
+  [ -d "$_stale" ] || continue
+  if kill -0 "${_stale##*-}" 2>/dev/null; then continue; fi   # a concurrent theme-preflight owns it
+  git worktree remove --force "$_stale" >/dev/null 2>&1 || true
+  if [ -d "$_stale" ]; then rm -rf "$_stale"; fi
+done
+git worktree prune >/dev/null 2>&1 || true
+
 echo "theme-preflight — checking the shared layer…"
 
 # 1. Every var(--gx-*) must resolve. An unresolved token is not a CSS error: the declaration is simply
