@@ -42,7 +42,23 @@
   if (global.GXStores) return;
 
   var CACHE_KEY = 'gx_stores_v1';
-  var TTL_MS    = 6 * 60 * 60 * 1000;   // 6h — the registry changes a few times a year
+  /* THERE IS NO EXPIRY ON THE READ, DELIBERATELY. There used to be a 6h TTL and it could only ever
+     do harm, which took a while to see: load() attempts a network refresh on EVERY call regardless
+     of cache age, so a fresh fetch replaces the cached rows anyway and the TTL never once prevented
+     a stale paint. The only thing it could do was throw the rows away at the exact moment they were
+     needed — a FAILED fetch — which is the opposite of what this file says it is for two comments
+     below ("a first paint must never wait on a network round-trip through GX Core's flaky two-hop
+     /exec").
+     What that cost, reported by spiff on 2026-09-09 and reproduced against this file: every store
+     rendered as its slug — "bend", "river-rd" — instead of Century and River. Four of six stores
+     have a display_name that differs from the store_id, so half a screen names places nobody calls
+     by those names. Any app doing `GXStores.name(id) || id` degrades identically, which per the
+     header is every spoke.
+     It also got MORE likely the longer GX Core was unwell: writeCache only runs on a successful
+     fetch, so a bad stretch aged the entry out and then there was nothing left to fall back on.
+     The age is still available — GXStores.cacheAge() — because "how old is this" is a real question.
+     It is now INFORMATION a consumer can act on rather than a verdict this file makes for them. */
+  var STALE_MS  = 6 * 60 * 60 * 1000;   // 6h — only what cacheAge()/isStale() report, never a discard
   var rows = [];
   var byId = {};
 
@@ -61,17 +77,25 @@
     });
   }
 
+  var cachedAt = null;             // ts of whatever readCache() last served, for cacheAge()
+
   function readCache() {
     try {
       var raw = global.localStorage.getItem(CACHE_KEY);
       if (!raw) return null;
       var e = JSON.parse(raw);
-      if (!e || !e.ts || (Date.now() - e.ts) > TTL_MS) return null;
-      return e.rows && e.rows.length ? e.rows : null;
+      // Age is recorded, not judged. A year-old registry still beats rendering slugs, and the
+      // refresh below replaces it on any successful fetch anyway.
+      if (!e || !e.rows || !e.rows.length) return null;
+      cachedAt = e.ts || null;
+      return e.rows;
     } catch (e) { return null; }
   }
   function writeCache(r) {
-    try { global.localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), rows: r })); } catch (e) {}
+    try {
+      cachedAt = Date.now();
+      global.localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: cachedAt, rows: r }));
+    } catch (e) {}
   }
 
   /* Paint from cache immediately, then refresh in the background: a first paint must never wait on
@@ -89,6 +113,7 @@
       var r = await global.GXClient(gxcoreExecUrl).jsonp('stores', {});
       if (r && r.ok && r.stores && r.stores.length) {
         rows = r.stores; index(); paintVars(); writeCache(rows);
+        cachedAt = null;   // served from the network this load, so there is no cache age to report
       }
     } catch (e) {
       console.warn('[GXStores] refresh failed, using ' + (rows.length ? 'cached' : 'no') + ' data:', e.message);
@@ -128,9 +153,16 @@
     return null;
   }
 
+  /* How old are the rows in hand, in ms — null when they came from the network this load, or when
+     there are none. Exposed because withholding the data was the wrong way to express "this might be
+     old": an app that wants to caveat a screen can now do so while still showing real store names. */
+  function cacheAge() { return cachedAt === null ? null : Date.now() - cachedAt; }
+
   global.GXStores = {
     load: load,
     all: function () { return rows.slice(); },
+    cacheAge: cacheAge,
+    isStale: function () { var a = cacheAge(); return a !== null && a > STALE_MS; },
     get: get,
     resolve: resolve,
     color: function (id) { var s = get(id); return (s && s.color) || null; },
