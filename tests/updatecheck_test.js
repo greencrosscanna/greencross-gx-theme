@@ -198,6 +198,30 @@ console.log('\n9. a KIOSK does not reload in a loop while Pages still serves the
   k.U.check(true);
   await Promise.resolve(); await Promise.resolve();
   ok(reloads === 2, 'once the wait has passed it tries again, so a slow Pages cannot strand it on the old build');
+
+  console.log('\n10. a kiosk follows EVERY deploy; a person is prompted only for releases with notes');
+  // Leaderboard's real shape on 2026-09-10: releases (noted only) newest v1.763, history newest v1.776.
+  const feed = { ok: true,
+    releases: [{ version: 'v1.763', deployed_at: '2026-09-09T20:46:00Z' }],
+    history:  [{ version: 'v1.776', deployed_at: '2026-09-10T06:39:00Z' }, { version: 'v1.763', deployed_at: '2026-09-09T20:46:00Z' }] };
+  const kiosk = mkKiosk();
+  let kioskReloads = 0;
+  kiosk.win.GXClient = () => ({ jsonp: () => Promise.resolve(feed) });
+  kiosk.U.init({ app: 'performance', gxcore: 'https://x/exec', version: () => 'v1.770', autoReload: true });
+  kiosk.win.location.replace = () => { kioskReloads++; };
+  kiosk.U.check(true);
+  await Promise.resolve(); await Promise.resolve();
+  ok(kioskReloads === 1, 'kiosk on v1.770, v1.776 deployed WITHOUT notes → it reloads (read `releases` and it sat on v1.770)');
+
+  const person = load();
+  let shown = null;
+  person.mk('gx-upd'); person.mk('gx-upd-txt'); person.mk('gx-upd-go'); person.mk('gx-upd-x');
+  person.win.GXClient = () => ({ jsonp: () => Promise.resolve(feed) });
+  person.U.init({ app: 'performance', gxcore: 'https://x/exec', version: () => 'v1.770' });
+  person.U.check(true);
+  await Promise.resolve(); await Promise.resolve();
+  shown = person.mk('gx-upd-txt').textContent;
+  ok(!shown, 'a person on v1.770 is NOT prompted for a noteless v1.776 — the toast is for releases worth reading');
 })().then(() => {
   console.log('\n' + (fail ? 'FAILED' : 'ok') + ' — ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

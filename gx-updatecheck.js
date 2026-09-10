@@ -177,7 +177,11 @@
        foreground, at most THROTTLE_MS later. */
     global.GXClient(cfg.gxcore).jsonp('version_history', { app: cfg.app },
                                       { retries: 0, timeoutMs: 45000 }).then(function (d) {
-      var rel = (d && d.ok && (d.releases || d.history)) || [];
+      /* WHICH LIST: `releases` is the consolidated feed — only deploys that carry notes — and
+         `history` is every deploy. A person gets the toast for a release worth reading about; a
+         KIOSK moves onto every new build, notes or not, because nobody there reads them (Sky,
+         2026-09-10). Reading `releases` on the kiosk left it on v1.763 while v1.776 was live. */
+      var rel = (d && d.ok && (cfg.autoReload ? (d.history || d.releases) : (d.releases || d.history))) || [];
       if (!rel.length) return;
       var top = pickLatest(rel);
       if (!top) return;
