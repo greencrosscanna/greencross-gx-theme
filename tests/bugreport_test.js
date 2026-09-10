@@ -232,6 +232,25 @@ console.log('\n5. a failed send is never reported as success');
   ok(/could not send/i.test(doc.getElementById('gxBugStatus').textContent), 'it shows an error');
   ok(doc.getElementById('gxBugSubmit').disabled === false, 'and re-enables Submit so it can be retried');
 }
+for (const [label, answer] of [['a bare {}', {}], ['undefined', undefined], ['{ok:"yes"}', { ok: 'yes' }]]) {
+  // Not ok:false, and not ok:true either — the old check read all of these as "Reported".
+  const { GXB, doc } = load();
+  GXB.init({ app: 'inventory', submit: () => answer });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'x';
+  click(doc, 'gxBugSubmit');
+  await tick(); await tick();
+  ok(doc.getElementById('gxBugSuccess').hidden === true, label + ' is NOT a filing — no success panel');
+}
+{
+  const { GXB, doc } = load();
+  GXB.init({ app: 'inventory', submit: () => ({ ok: true, id: 'bug_x' }) });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'x';
+  click(doc, 'gxBugSubmit');
+  await tick(); await tick();
+  ok(doc.getElementById('gxBugSuccess').hidden === false, '{ok:true} still shows the success panel');
+}
 {
   const { GXB, doc } = load();
   GXB.init({ app: 'inventory', submit: () => Promise.reject(new Error('network')) });

@@ -39,7 +39,9 @@
   var FIRST_CHECK_MS = 4000;
 
   /* 'v2.526' -> [2,526]. Compares segment by segment so v2.9 < v2.10, which a string compare gets
-     backwards, and so a bare 'v39' from the old scheme still orders sanely against it. */
+     backwards. It does NOT order two version SCHEMES against each other: a bare 'v38' is [38], which
+     beats [1,432] on the first segment. That is why the latest release is picked by date, below, and
+     this comparator only ever decides "is that newer than what I am running". */
   function parts(v) {
     return String(v || '').replace(/^v/i, '').split('.').map(function (n) { return parseInt(n, 10) || 0; });
   }
@@ -50,6 +52,24 @@
       if (d) return d > 0;
     }
     return false;
+  }
+
+  /* THE LATEST RELEASE IS THE ONE DEPLOYED LAST, not the biggest number. The header above already
+     said so ("the newest row there is by definition what shipped last"); the code used to take the
+     numeric max instead. An app that changed version schemes then nags forever: Price Cards carries
+     old rows v19..v42 from before it moved to v1.4xx, so v38 "beat" v1.432 and every load showed
+     "Version v38 is available". Rows without a readable deployed_at fall back to the numeric max,
+     which is only wrong across schemes, and a row with a date always outranks one without. */
+  function pickLatest(rel) {
+    var best = null, bestT = -Infinity;
+    rel.forEach(function (r) {
+      var t = Date.parse(r && r.deployed_at);
+      if (r && r.version && isFinite(t) && t > bestT) { bestT = t; best = r.version; }
+    });
+    if (best) return best;
+    var top = rel[0] && rel[0].version;
+    rel.forEach(function (r) { if (r && newer(r.version, top)) top = r.version; });
+    return top;
   }
 
   function el() { return global.document.getElementById('gx-upd'); }
@@ -129,12 +149,17 @@
     var now = Date.now();
     if (!force && now - checkedAt < THROTTLE_MS) return;
     checkedAt = now;
-    global.GXClient(cfg.gxcore).jsonp('version_history', { app: cfg.app }).then(function (d) {
+    /* NO RETRIES, a patient timeout. Nobody is waiting on this answer, and a JSONP timeout does not
+       cancel the request — the script tag keeps its connection — so each retry is a second
+       connection and a second GX Core job, not a replacement. Crew measured version_history requested
+       4 times in one page load this way. A miss here costs nothing: the next check is on the next
+       foreground, at most THROTTLE_MS later. */
+    global.GXClient(cfg.gxcore).jsonp('version_history', { app: cfg.app },
+                                      { retries: 0, timeoutMs: 45000 }).then(function (d) {
       var rel = (d && d.ok && (d.releases || d.history)) || [];
       if (!rel.length) return;
-      // Newest first by contract, but do not trust the order — take the max.
-      var top = rel[0].version;
-      rel.forEach(function (r) { if (newer(r.version, top)) top = r.version; });
+      var top = pickLatest(rel);
+      if (!top) return;
       latest = top;
       if (newer(top, current())) maybeReload(top);
     }).catch(function () {});
@@ -158,6 +183,6 @@
     check: check,
     // Exported deliberately: the comparator is the part with edge cases worth checking from a
     // console or a test.
-    _parts: parts, _newer: newer, _show: show,
+    _parts: parts, _newer: newer, _show: show, _pickLatest: pickLatest,
   };
 })(typeof window !== 'undefined' ? window : this);

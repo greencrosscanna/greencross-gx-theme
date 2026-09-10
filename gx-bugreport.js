@@ -441,7 +441,14 @@
         // An app's transport may resolve with {ok:false,error} instead of rejecting. Treating that as
         // success is how a report vanishes while the user reads "Reported!" — which has happened here
         // before (see gxIngestBug's title fallback).
-        if (res && res.ok === false) throw new Error(res.error || 'Failed');
+        /* SUCCESS IS A POSITIVE {ok:true}, NOT THE ABSENCE OF {ok:false}. This used to reject only an
+           explicit ok:false, so anything else that resolved — a bare {}, an HTML error page some
+           transport parsed into nothing, undefined — read as "Reported". Inventory flagged it on
+           2026-09-10 while hunting three lost reports (not their cause, but a live gap). Every app's
+           backend returns an explicit {ok:true} on a filing, checked in all six before this changed. */
+        if (!res || res.ok !== true) {
+          throw new Error((res && res.error) || 'No confirmation came back, so the report may not have been filed');
+        }
         doc.getElementById('gxBugBody').hidden = true;
         var ok = doc.getElementById('gxBugSuccess');
         ok.hidden = false;

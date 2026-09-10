@@ -64,14 +64,15 @@ function boot(opts) {
     document: null,   // paintVars() no-ops without one
     console: { warn() {}, log() {} },
     GXClient: () => ({
-      jsonp: async () => {
+      jsonp: async (action, params, callOpts) => {
+        win.__callOpts = callOpts;
         if (o.fetch === 'fail') throw new Error('two-hop /exec served HTML');
         return { ok: true, stores: o.fetch };
       },
     }),
   };
   new Function('window', 'console', fs.readFileSync(SRC, 'utf8') + '\n;window.__GXStores = window.GXStores;')(win, win.console);
-  return { S: win.__GXStores, raw: () => store['gx_stores_v1'] };
+  return { S: win.__GXStores, raw: () => store['gx_stores_v1'], callOpts: () => win.__callOpts };
 }
 
 (async () => {
@@ -141,6 +142,19 @@ console.log('\n5. the age is reported, not used to withhold');
   const fresh = boot({ cachedAgeMs: 1 * HOUR, fetch: 'fail' });
   await fresh.S.load('u');
   ok(fresh.S.isStale() === false, 'and no at 1h');
+}
+
+console.log('\n5. a refresh behind a painted cache does not retry; a first load with nothing does');
+{
+  const bg = boot({ cachedAgeMs: 1 * HOUR, fetch: STORES });
+  await bg.S.load('u');
+  const o1 = bg.callOpts() || {};
+  ok(o1.retries === 0, 'cache painted → retries: 0 (Crew measured ?action=stores 4x in one page load)');
+  ok(o1.timeoutMs >= 30000, '…with a patient timeout instead');
+
+  const cold = boot({ cachedAgeMs: null, fetch: STORES });
+  await cold.S.load('u');
+  ok(cold.callOpts() === undefined, 'no cache → GXClient defaults, because someone is waiting on a blank list');
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

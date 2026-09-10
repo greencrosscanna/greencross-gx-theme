@@ -140,5 +140,35 @@ console.log('\n6. the reload keeps the hash route (the kiosk depends on it)');
      'and KEEPS the hash — dropping it would send an unattended kiosk back to the default view');
 }
 
+console.log('\n7. the latest release is the one DEPLOYED last, not the biggest number');
+{
+  const { U } = load();
+  // Price Cards' real shape on 2026-09-10: old-scheme rows from before it moved to v1.4xx, newest first.
+  const pc = [
+    { version: 'v1.427', deployed_at: '2026-08-31T23:24:30.375Z' },
+    { version: 'v1.426', deployed_at: '2026-08-29T22:31:57.268Z' },
+    { version: 'v38',    deployed_at: '2026-08-21T18:00:00.000Z' },
+    { version: 'v33',    deployed_at: '2026-08-14T01:29:58.394Z' },
+  ];
+  ok(U._pickLatest(pc) === 'v1.427', 'Price Cards: v1.427 (shipped last), NOT v38 (the biggest number)');
+  ok(U._newer(U._pickLatest(pc), 'v1.432') === false,
+     '…so a tab on v1.432 gets no toast — this is the permanent false "v38 is available"');
+  ok(U._pickLatest(pc.slice().reverse()) === 'v1.427', 'order of the rows does not matter');
+  ok(U._pickLatest([{ version: 'v2.9' }, { version: 'v2.10' }]) === 'v2.10',
+     'no dates at all → falls back to the numeric max, same scheme still orders right');
+  ok(U._pickLatest([{ version: 'v9.999' }, { version: 'v1.001', deployed_at: '2026-09-01T00:00:00Z' }]) === 'v1.001',
+     'a dated row outranks an undated one');
+}
+
+console.log('\n8. the background check does not retry (nobody is waiting on it)');
+{
+  let seen = null;
+  const { U } = load({ GXClient: () => ({ jsonp: (a, p, o) => { seen = o; return Promise.resolve({ ok: true, releases: [] }); } }) });
+  U.init({ app: 'pricecards', gxcore: 'https://x/exec', version: () => 'v1.432' });
+  U.check(true);
+  ok(seen && seen.retries === 0, 'retries: 0 — a JSONP timeout does not cancel, so a retry is a second connection');
+  ok(seen && seen.timeoutMs >= 30000, 'and a patient timeout instead');
+}
+
 console.log('\n' + (fail ? 'FAILED' : 'ok') + ' — ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

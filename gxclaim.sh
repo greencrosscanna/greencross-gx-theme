@@ -99,6 +99,28 @@ held_by_other() {                      # 0 = someone ELSE holds it
   return 0
 }
 
+# ─── NO CLAIM IS NOT THE SAME AS NOBODY HERE ────────────────────────────────────────────────────
+# `who` used to print "free" whenever the claim file was absent. On 2026-09-09 it said "greencross-spiff:
+# free" while a live session was working there, and the next night five of six spoke chats were open
+# with no claim file between them (only crew's survived; why the others vanished is still open). A
+# session opened before the hook claimed, or in a checkout whose hook never claims (the hub's did not),
+# holds nothing — and "free" told the next session to start editing underneath it.
+#
+# So the advisory commands also look at the processes: any OTHER Claude session whose working directory
+# is this checkout. `pgrep -a` because macOS pgrep otherwise hides its own ancestors, which includes the
+# session asking. This is ADVISORY ONLY: `check` still enforces on the claim file alone, because
+# refusing a commit on a process-table guess is a much bigger decision than printing one.
+others_here() {
+  command -v lsof >/dev/null 2>&1 || return 0
+  _top="$(git rev-parse --show-toplevel 2>/dev/null)" || return 0
+  for _p in $(pgrep -a -x claude 2>/dev/null); do
+    [ -n "$ME" ] && [ "$_p" = "$ME" ] && continue
+    [ -n "$c_pid" ] && [ "$_p" = "$c_pid" ] && continue
+    _cwd="$(lsof -a -p "$_p" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p')"
+    [ "$_cwd" = "$_top" ] && printf '%s ' "$_p"
+  done
+}
+
 short_session() { printf '%s' "$1" | cut -c1-8; }
 
 describe_holder() {
@@ -184,7 +206,13 @@ case "$CMD" in
 
   who)
     if live_claim; then echo "$REPO: held by $(describe_holder) since ${c_started:-?}"
-    else echo "$REPO: free"; fi
+    else
+      _others="$(others_here)"
+      if [ -n "$_others" ]; then
+        echo "$REPO: NOT CLAIMED — but another Claude session is working in this folder (pid ${_others% })."
+        echo "   No claim is not the same as nobody here. Ask that session, or check ListAgents, before editing."
+      else echo "$REPO: free"; fi
+    fi
     exit 0
     ;;
 
@@ -264,6 +292,11 @@ HOOK_EOF
       echo "  since ${c_started:-?}${c_branch:+, on branch $c_branch}${c_host:+, on $c_host}"
     else
       echo "  not claimed"
+    fi
+    _others="$(others_here)"
+    if [ -n "$_others" ]; then
+      echo "  ⚠ another Claude session is working in this folder without a claim here (pid ${_others% })"
+      echo "    — the gates cannot protect either of you until one of you claims."
     fi
     # A gate that stopped running is worse than no gate, and this filesystem can switch one off by
     # dropping a mode bit. Say plainly whether each hook is there AND executable.
