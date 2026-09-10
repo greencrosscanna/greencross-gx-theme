@@ -174,12 +174,15 @@ case "$CMD" in
     fi
     if ! held_by_other; then
       # CLAIM ON FIRST ACTION, not only at session start. The hook claims once, when a chat opens, and
-      # a chat refused then was never offered it again. On 2026-09-10 Sky opened six new spoke chats
-      # while the old ones still held their repos: every new chat was refused at start, the old ones
-      # closed a minute later (their claims went stale and were swept), and five repos sat unclaimed
-      # with live sessions in them — the gates protecting nobody. Inventory, Crew and Price Cards each
-      # reported that exact sequence. So the first gated action (commit, push, branch change) by a
-      # session in an unclaimed checkout takes the claim; the one it would have got at start.
+      # a chat refused then was never offered it again. On 2026-09-10 six new spoke chats were each
+      # refused at start by a claim taken IN THE SAME MINUTE by a different session id — one that left
+      # no transcript anywhere and was gone within minutes (its claim went stale and was swept). There
+      # were no older spoke chats open; the holders look like a short-lived companion process started
+      # alongside each chat, which is inference from those two facts, not something observed. Five
+      # repos then sat unclaimed with live chats in them, the gates protecting nobody. All five chats
+      # reported the same refused-then-"free" sequence. So the first gated action (commit, push,
+      # branch change) by a session in an unclaimed checkout takes the claim, whatever held it before.
+      # (An earlier version of this comment blamed old chats still open. There were none.)
       live_claim || write_claim ""
       exit 0
     fi
