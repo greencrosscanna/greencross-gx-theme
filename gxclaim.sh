@@ -123,6 +123,19 @@ others_here() {
 
 short_session() { printf '%s' "$1" | cut -c1-8; }
 
+write_claim() {                        # $1 = label
+  umask 077
+  {
+    echo "pid=$ME"
+    echo "session=$MY_SESSION"
+    echo "host=$HOST"
+    echo "started=$(date '+%Y-%m-%d %H:%M')"
+    echo "epoch=$(date +%s)"
+    echo "branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+    echo "label=${1:-}"
+  } > "$CLAIM"
+}
+
 describe_holder() {
   _who="session ${c_session:+$(short_session "$c_session")}"
   [ -n "$c_label" ] && _who="$_who — \"$c_label\""
@@ -146,16 +159,7 @@ case "$CMD" in
       echo "       sh ./gxclaim.sh release --force"
       exit 1
     fi
-    umask 077
-    {
-      echo "pid=$ME"
-      echo "session=$MY_SESSION"
-      echo "host=$HOST"
-      echo "started=$(date '+%Y-%m-%d %H:%M')"
-      echo "epoch=$(date +%s)"
-      echo "branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
-      echo "label=$LABEL"
-    } > "$CLAIM"
+    write_claim "$LABEL"
     exit 0
     ;;
 
@@ -168,7 +172,17 @@ case "$CMD" in
       fi
       exit 0
     fi
-    held_by_other || exit 0
+    if ! held_by_other; then
+      # CLAIM ON FIRST ACTION, not only at session start. The hook claims once, when a chat opens, and
+      # a chat refused then was never offered it again. On 2026-09-10 Sky opened six new spoke chats
+      # while the old ones still held their repos: every new chat was refused at start, the old ones
+      # closed a minute later (their claims went stale and were swept), and five repos sat unclaimed
+      # with live sessions in them — the gates protecting nobody. Inventory, Crew and Price Cards each
+      # reported that exact sequence. So the first gated action (commit, push, branch change) by a
+      # session in an unclaimed checkout takes the claim; the one it would have got at start.
+      live_claim || write_claim ""
+      exit 0
+    fi
     if [ "${GX_CLAIM_OK:-0}" = "1" ]; then
       echo "⚠️  GX_CLAIM_OK=1 — $CONTEXT allowed even though another session holds $REPO." >&2
       exit 0

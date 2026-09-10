@@ -33,7 +33,7 @@
 # one is skipped silently. Re-arming costs three writes; noticing it had disarmed costs a bad ship.
 if [ -f ./gxclaim.sh ]; then
   sh ./gxclaim.sh install >/dev/null 2>&1
-  sh ./gxclaim.sh claim "" || echo "   → this chat is READ-ONLY in this repo until that one finishes."
+  sh ./gxclaim.sh claim "" || echo "   → this chat is READ-ONLY in this repo until that one finishes. Once it closes, this chat's first commit takes the claim."
 fi
 
 APP="__APP__"

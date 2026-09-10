@@ -37,6 +37,7 @@
   var cfg = null, latest = null, checkedAt = 0, wired = false;
   var THROTTLE_MS = 5 * 60 * 1000;
   var FIRST_CHECK_MS = 4000;
+  var RELOAD_RETRY_MS = 2 * 60 * 1000;   // a kiosk's wait before reloading for the same version again
 
   /* 'v2.526' -> [2,526]. Compares segment by segment so v2.9 < v2.10, which a string compare gets
      backwards. It does NOT order two version SCHEMES against each other: a bare 'v38' is [38], which
@@ -112,7 +113,10 @@
 
   function apply() {
     var v = latest || String(Date.now());
-    try { global.sessionStorage.setItem('gx_upd_tried', v); } catch (e) {}
+    try {
+      global.sessionStorage.setItem('gx_upd_tried', v);
+      global.sessionStorage.setItem('gx_upd_tried_at', String(Date.now()));
+    } catch (e) {}
     /* A plain reload() can be served from cache, which is the whole problem. A URL the browser has
        never seen cannot be — hence the ?v=.
 
@@ -136,7 +140,24 @@
 
   /* A kiosk has nobody to click the toast, so it reloads itself. Everything else asks first. */
   function maybeReload(v) {
-    if (cfg && cfg.autoReload) { latest = v; apply(); return; }
+    if (cfg && cfg.autoReload) {
+      /* A KIOSK MUST NOT RELOAD IN A LOOP. Pages can serve the old build for a minute or so after
+         deploy.sh records the release, so a reload can come back still old — and the boot check 4s
+         later would see the same "newer" release and reload again, every few seconds, on a wall
+         screen staff are watching. show() already refuses a version it TRIED; this path skipped that
+         guard (Leaderboard caught it, 2026-09-10). Instead of giving up, it waits and looks again: a
+         kiosk never changes visibility, so without the re-check it would sit on the old build. */
+      var tried = null, at = 0;
+      try {
+        tried = global.sessionStorage.getItem('gx_upd_tried');
+        at = parseInt(global.sessionStorage.getItem('gx_upd_tried_at'), 10) || 0;
+      } catch (e) {}
+      if (tried === v && Date.now() - at < RELOAD_RETRY_MS) {
+        global.setTimeout(function () { check(true); }, RELOAD_RETRY_MS);
+        return;
+      }
+      latest = v; apply(); return;
+    }
     show(v);
   }
 

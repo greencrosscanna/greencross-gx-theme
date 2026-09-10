@@ -170,5 +170,35 @@ console.log('\n8. the background check does not retry (nobody is waiting on it)'
   ok(seen && seen.timeoutMs >= 30000, 'and a patient timeout instead');
 }
 
-console.log('\n' + (fail ? 'FAILED' : 'ok') + ' — ' + pass + ' passed, ' + fail + ' failed');
-process.exit(fail ? 1 : 0);
+console.log('\n9. a KIOSK does not reload in a loop while Pages still serves the old build');
+(async () => {
+  const timers = [];
+  const mkKiosk = () => {
+    const t = load({ setTimeout: (fn, ms) => { timers.push(ms); return 0; },
+      location: { pathname: '/greencross-leaderboard/', hash: '', replace(u) { t.win.__replaced = u; } } });
+    t.win.location.replace = (u) => { t.win.__replaced = u; };
+    return t;
+  };
+  let reloads = 0;
+  const releases = { ok: true, releases: [{ version: 'v1.771', deployed_at: new Date().toISOString() }] };
+  const k = mkKiosk();
+  k.win.GXClient = () => ({ jsonp: () => Promise.resolve(releases) });
+  k.U.init({ app: 'performance', gxcore: 'https://x/exec', version: () => 'v1.770', autoReload: true });
+  k.win.location.replace = (u) => { reloads++; k.win.__replaced = u; };
+  k.U.check(true);
+  await Promise.resolve(); await Promise.resolve();
+  ok(reloads === 1, 'first sight of a newer release → the kiosk reloads itself');
+  // The reload came back STILL on v1.770 (Pages lag). Same tab, same sessionStorage: check again.
+  timers.length = 0;
+  k.U.check(true);
+  await Promise.resolve(); await Promise.resolve();
+  ok(reloads === 1, 'the same version again within 2 minutes → NO second reload (this was a loop)');
+  ok(timers.some(ms => ms >= 60000), '…and it schedules a re-check, because a kiosk never changes visibility');
+  k.store['gx_upd_tried_at'] = String(Date.now() - 3 * 60 * 1000);
+  k.U.check(true);
+  await Promise.resolve(); await Promise.resolve();
+  ok(reloads === 2, 'once the wait has passed it tries again, so a slow Pages cannot strand it on the old build');
+})().then(() => {
+  console.log('\n' + (fail ? 'FAILED' : 'ok') + ' — ' + pass + ' passed, ' + fail + ' failed');
+  process.exit(fail ? 1 : 0);
+});
