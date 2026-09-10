@@ -59,12 +59,36 @@ FILES="$(git ls-files '*.html' '*.js' '*.css' '*.gs' 2>/dev/null | grep -vE '^(g
 # ("// USE_FIXTURES = true reads fixtures") trips the check, and a hook that cries wolf on a clean
 # tree gets --no-verify'd within a day, which defeats the whole point. The @devonly check is the one
 # that deliberately wants comments.
+# -a KEEPS THE DIAGNOSTICS, and that is the whole of the claim. If a shipped file contains a NUL
+# byte, grep may classify it as binary and collapse every match to the single line
+# "Binary file <name> matches" — no path, no line number, no offending text.
+#
+# WHAT THAT DOES AND DOES NOT DO, measured 2026-09-09 rather than reasoned, because two sessions
+# (mine included) got this wrong in both directions first:
+#   • It does NOT disable the gate. `hits` is still non-empty, so a hard check still sets FAIL and
+#     still blocks the push. A clean file still passes. Verified with a real `@devonly` leftover in a
+#     NUL-bearing file at every position tried: CAUGHT every time.
+#   • It DOES destroy the report. You are told the push is blocked and given a filename with no line
+#     and no matching text, on a file grep has decided it cannot quote — which on a 240KB proxy is a
+#     blocked push nobody can act on.
+#
+# POSITION MATTERS AND NOTHING CHOOSES IT. /usr/bin/grep (BSD, what this hook gets under /bin/sh)
+# classifies from the FIRST BLOCK only. Minimal pair, identical size and token, NUL position the only
+# difference:  byte 1 -> "Binary file early.gs matches" · byte 312000 -> "late.gs:6002:@devonly".
+# greencross-sales carried two NULs at offset 196535 (a '\0' delimiter written as a literal byte,
+# commit edc075d) and its hook read the file normally — purely because they landed late.
+#
+# The agent-facing `grep` is a shell function wrapping ugrep, which scans the WHOLE file and behaves
+# differently again. So a measurement taken at an interactive prompt does not describe this hook.
+# -a removes the whole question: never classify a shipped source file as binary.
 flag() {
-  hits="$(grep -HnE "$3" $FILES 2>/dev/null || true)"   # -H: grep omits the filename for a SINGLE
+  hits="$(grep -aHnE "$3" $FILES 2>/dev/null || true)"  # -a: see above — a NUL must not cost the
+                                                       #     file:line report a blocked push needs
+                                                       # -H: grep omits the filename for a SINGLE
                                                        # file, which breaks the comment filter below
   if [ "${4:-}" != "comments" ]; then
     # drop  file:line:<whitespace>(// | * | #)  — i.e. the match sits in a comment, not in code
-    hits="$(printf '%s\n' "$hits" | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(//|\*|#)' || true)"
+    hits="$(printf '%s\n' "$hits" | grep -avE '^[^:]*:[0-9]+:[[:space:]]*(//|\*|#)' || true)"
   fi
   [ -n "$hits" ] || return 0
   echo "  ✗ $2"
