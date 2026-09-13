@@ -293,8 +293,46 @@ RESP="$(curl -sL --max-time 20 -G "$GXCORE" \
   --data-urlencode "by=gxengine@$(hostname -s 2>/dev/null || echo local)" \
   --data-urlencode "rows=$ROWS" 2>/dev/null)"
 echo "recorded   : $RESP"
-if [ "$RECORD_ONLY" = "1" ]; then
-  echo "✓ $APP pin recorded at ${HEAD_SHA:0:9}${LV:+, running GXCore v$LV}"
+
+# ── Did the record actually land? ───────────────────────────────────────────────────────────────
+# The POST goes through the same bouncing /exec second hop as everything else, so an EMPTY reply is
+# routine and means nothing either way — the write usually succeeded and only the answer was lost.
+# This printed "✓ pin recorded" regardless, which is the worst of both: it cannot tell a bounced
+# RESPONSE from a failed WRITE, and it reported success for both. Observed 2026-09-13 on
+# performance — blank reply, row written fine, and the only way to know was to go and look.
+#
+# So go and look. Read core_pins back and compare the sha to the one we just claimed to record.
+# Costs one GET on the uncommon path and turns a guess into an answer.
+case "$RESP" in
+  *'"ok":true'*) _pin_ok=1 ;;
+  *)
+    _pin_ok=0
+    _seen="$(curl -sL --max-time 20 "$GXCORE?action=core_pins" 2>/dev/null | python3 -c "
+import sys, json
+try:
+    d = json.loads(sys.stdin.read(), strict=False)
+except Exception:
+    raise SystemExit(0)
+rows = d if isinstance(d, list) else (d.get('pins') or d.get('rows') or [])
+for r in rows if isinstance(rows, list) else []:
+    if str(r.get('app', '')) == '$APP':
+        print(str(r.get('deployed_sha', '')))
+        break
+" 2>/dev/null)"
+    [ -n "$_seen" ] && [ "${_seen}" = "${HEAD_SHA}" ] && _pin_ok=1
+    ;;
+esac
+
+if [ "$_pin_ok" = "1" ]; then
+  if [ "$RECORD_ONLY" = "1" ]; then
+    echo "✓ $APP pin recorded at ${HEAD_SHA:0:9}${LV:+, running GXCore v$LV}"
+  else
+    echo "✓ $APP deployed at ${HEAD_SHA:0:9}${LV:+, running GXCore v$LV}"
+  fi
 else
-  echo "✓ $APP deployed at ${HEAD_SHA:0:9}${LV:+, running GXCore v$LV}"
+  [ "$RECORD_ONLY" = "1" ] || echo "✓ $APP deployed at ${HEAD_SHA:0:9}${LV:+, running GXCore v$LV}"
+  echo "! core_pins does NOT show ${HEAD_SHA:0:9} for $APP — the pin was not recorded."
+  echo "  The deploy itself is unaffected; only the record of it is missing."
+  echo "  Re-run (safe to repeat):  sh ./gxengine.sh --record-only"
+  exit 1
 fi
