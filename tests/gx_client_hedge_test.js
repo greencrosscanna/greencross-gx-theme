@@ -10,7 +10,7 @@
  *
  * THE ASSERTION THIS FILE EXISTS FOR IS §3: A WRITE IS NEVER HEDGED.
  * jsonp() carries writes — Crew sends incentive_approve, incentive_send and roster_merge through
- * it — and a losing JSONP copy is not cancelled; its execution runs to the end. A hedged write runs
+ * it — and a losing JSONP copy is not canceled; its execution runs to the end. A hedged write runs
  * twice. If §3 ever fails, a pay approval can be sent twice by a slow network.
  *
  * Drives the REAL jsonp() through a fake <script> element, the same way

@@ -206,7 +206,7 @@
      *
      * WHY THIS IS SAFE ONLY FOR READS, and why the list is explicit rather than inferred:
      * a hedge is a deliberate duplicate. jsonp() carries WRITES too — Crew sends incentive_approve,
-     * incentive_send and roster_merge through it — and the losing copy is never cancelled: abandoning
+     * incentive_send and roster_merge through it — and the losing copy is never canceled: abandoning
      * a JSONP attempt does not stop the execution (see TIMEOUT above). A hedged write runs twice.
      * So an action hedges ONLY if it is named in HEDGE_READS, and every name there is asserted by
      * tests/hedge_reads_are_reads_test.js to be a read in EVERY engine in the suite that answers it.
