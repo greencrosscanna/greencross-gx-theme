@@ -38,13 +38,20 @@ done
 # twice and races its `git commit` against yours; that happened on 2026-09-13 and left the release
 # unrecorded behind a stale index.lock.
 #
+# THE [-] IN THE PATTERN BELOW IS LOAD-BEARING — do not "simplify" it to a plain hyphen. gx-sync
+# decides whether to overwrite a file by grepping that file for the literal marker, so a shared file
+# that merely MENTIONS the marker pins ITSELF, everywhere, from its first sync onward. This script did
+# exactly that on 2026-09-13: five spokes took a copy and gx-sync would never have updated any of them
+# again, silently, while reporting a clean sync. The bracket makes the regex match the marker without
+# the file containing it. tests/synced_files_marker_test.js in gx-theme fails if this regresses.
+#
 # ASK THE FILE, DO NOT KEEP A LIST OF REPOS. The two marks below are the ones that are actually TRUE
 # of a self-deploying deploy.sh: it is pinned against gx-sync (or the next sync would replace it with
 # the recorder, which is a documented 2026-08-22 outage) and it runs clasp itself. A hardcoded
 # "if leaderboard" would be wrong the day a second spoke forks its deploy.sh, and nothing would say so.
 _own_pipeline=0
 if [ -f "$SCRIPT_DIR/deploy.sh" ] \
-   && grep -q 'gx-sync:keep-local' "$SCRIPT_DIR/deploy.sh" 2>/dev/null \
+   && grep -qE 'gx-sync:keep[-]local' "$SCRIPT_DIR/deploy.sh" 2>/dev/null \
    && grep -q 'clasp push' "$SCRIPT_DIR/deploy.sh" 2>/dev/null; then
   _own_pipeline=1
 fi
