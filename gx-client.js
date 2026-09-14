@@ -181,6 +181,55 @@
       return n >= CONGESTION_TRIP;
     }
 
+    /* ─── HEDGED READS — 2026-09-14 ─────────────────────────────────────────────────────────────
+     *
+     * THE STALL IS NOT WHERE THIS FILE THOUGHT IT WAS, AND IT IS NOT LOAD.
+     *
+     * Measured from the Mac on 2026-09-14, timing each hop of /exec separately on ?action=health (a
+     * route that runs in milliseconds): the FIRST hop — script.google.com answering 302 — took a
+     * median 1.9s and 18-34s on 5 of 35 calls. The second hop, googleusercontent serving the body,
+     * was a median 0.3s. The comments above were written when the second hop was the slow one; on
+     * this date it was the first, which is where Apps Script starts an execution.
+     *
+     * And it is not GX Core being busy. ./gxstats.sh over 48 hours: ~100 calls an hour and an
+     * average of 0.01-0.10 executions running at once. GX Core's own self-probe still waited 6.0s on
+     * average for a route that runs in milliseconds, with 10% of probes failing outright. The same
+     * tail hit other apps in the same minutes — Price Cards, the quietest engine in the suite and
+     * 88KB of code, had the WORST waits (up to 24.9s) while Sales, the busiest, never passed 2.3s.
+     * A slow call is an execution Google took a long time to start, and a quiet app is a cold one.
+     *
+     * Nothing in this suite can make Google start an execution faster. What the numbers do allow is
+     * not waiting for the unlucky one: the stall is per REQUEST, so a second copy of a stalled read
+     * usually lands on an execution that starts normally. If a read has not answered in HEDGE_MS,
+     * fire one more copy and take whichever answers first. Measured the same night: a call that
+     * would have waited 10.8s answered in 6.5s from a copy sent at 4s.
+     *
+     * WHY THIS IS SAFE ONLY FOR READS, and why the list is explicit rather than inferred:
+     * a hedge is a deliberate duplicate. jsonp() carries WRITES too — Crew sends incentive_approve,
+     * incentive_send and roster_merge through it — and the losing copy is never cancelled: abandoning
+     * a JSONP attempt does not stop the execution (see TIMEOUT above). A hedged write runs twice.
+     * So an action hedges ONLY if it is named in HEDGE_READS, and every name there is asserted by
+     * tests/hedge_reads_are_reads_test.js to be a read in EVERY engine in the suite that answers it.
+     * Anything unlisted behaves exactly as before, byte for byte.
+     *
+     * WHY IT DOES NOT FEED THE STORM this file spent a week damping:
+     *   - never while congested() — a server that is genuinely behind gets fewer requests, not more;
+     *   - never unless the attempt's budget is at least TWICE HEDGE_MS, so the second copy gets as
+     *     long as the first had already waited, and a caller with a short timeout is untouched;
+     *   - at most ONE extra copy per attempt, and only for the slow fraction of calls;
+     *   - and the second copy's budget ends when the first's does, so an attempt never takes longer
+     *     than it did before this existed. It can only finish sooner. */
+    var HEDGE_MS = defaults.hedgeMs != null ? defaults.hedgeMs : 6000;
+    /* The busy BROWSER reads, and nothing else. core_pins and goal_freshness were on the first draft
+       of this list and came off it when tests/hedge_reads_are_reads_test.js (in the hub) traced
+       them to gxEnsureTab_ and gxWrite_. Both are guarded in practice — the tab is created only when
+       missing, the freshness route passes dry:true — but the scan cannot see a guard, neither route
+       is a hot browser path, and a hedge list is the wrong place to win an argument with a safety
+       gate. Adding a name here means that test must pass for it in every engine that answers it. */
+    var HEDGE_READS = defaults.hedgeReads || {
+      health: 1, config: 1, stores: 1, apps: 1, version_history: 1, published_goals: 1, grants: 1
+    };
+
     function buildUrl(action, params, extra) {
       var u = new URL(baseUrl);
       u.searchParams.set('action', action);
@@ -252,6 +301,42 @@
       });
     }
 
+    /* One ATTEMPT, possibly hedged. See HEDGE_MS for why, and for the rules this enforces.
+     *
+     * Outcomes, in the order they can happen:
+     *   - the first copy answers before HEDGE_MS      -> resolve; no second copy is ever sent
+     *   - the first copy MISSES before HEDGE_MS       -> reject at once, exactly as unhedged, so the
+     *                                                    instant Drive-HTML miss keeps its fast retry
+     *   - HEDGE_MS passes with nothing                -> send ONE more copy, budget = what is left
+     *   - either copy answers                         -> resolve with it; the other is ignored
+     *   - both fail                                   -> reject. gxSlow only if BOTH timed out, so
+     *                                                    congestion is still measured in timeouts */
+    function attemptOnce(action, params, budget) {
+      var hedgeable = HEDGE_MS > 0 && HEDGE_READS[action] && !congested() && HEDGE_MS * 2 <= budget;
+      if (!hedgeable) return jsonpOnce(action, params, budget);
+      return new Promise(function (resolve, reject) {
+        var settled = false, fired = false, live = 1, errs = [];
+        var hedgeTimer = null;
+        var win = function (v) { if (settled) return; settled = true; clearTimeout(hedgeTimer); resolve(v); };
+        var lose = function (e) {
+          errs.push(e); live--;
+          if (settled) return;
+          if (!fired) { settled = true; clearTimeout(hedgeTimer); reject(e); return; }   // missed before the hedge
+          if (live > 0) return;                                                           // the other copy may still win
+          settled = true;
+          var both = new Error('jsonp hedged attempt failed twice: ' + errs.map(function (x) { return x && x.message; }).join(' | '));
+          both.gxSlow = errs.every(function (x) { return x && x.gxSlow === true; });
+          reject(both);
+        };
+        jsonpOnce(action, params, budget).then(win, lose);
+        hedgeTimer = setTimeout(function () {
+          if (settled) return;
+          fired = true; live++;
+          jsonpOnce(action, params, budget - HEDGE_MS).then(win, lose);
+        }, HEDGE_MS);
+      });
+    }
+
     // JSONP with retry+backoff. THE call to use for GX Core from a spoke frontend.
     function jsonp(action, params, opts) {
       if (global.GXDev) global.GXDev.check(action);   // dev write-guard; inert in production
@@ -269,7 +354,7 @@
           // and what is left looks like a cold start that simply needs longer.
           var budget = (a === retries) ? Math.max(timeoutMs, lastTimeoutMs) : timeoutMs;
           try {
-            var payload = await jsonpOnce(action, params, budget);
+            var payload = await attemptOnce(action, params, budget);
             noteOutcome(false);                  // it answered — evidence the server is NOT loaded
             return payload;
           }
