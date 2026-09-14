@@ -1,4 +1,26 @@
-#!/usr/bin/env node
+#!/bin/sh
+# gx-deadcode — find top-level functions nothing can reach.  Run:  sh ./gx-deadcode.sh
+#
+# Source of truth: greencross-gx-theme/gx-deadcode.sh. Synced into spokes by gx-sync.sh.
+#
+# IT IS A SHELL SCRIPT WRAPPING NODE, AND THAT IS NOT A STYLE CHOICE. clasp pushes .js/.gs/.ts/.html/
+# .json and ignores every other extension, so a root-level gx-deadcode.JS would be inside the push
+# scope of every spoke whose rootDir is the repo root — and would ship as gx-deadcode.gs, where the
+# node shebang is a parse error that fails the ENTIRE push, backend fix and all. serve.js did exactly
+# that to sales on 2026-09-03, and inventory and sales each carry a hand-written .claspignore line
+# naming serve.js to this day.
+#
+# This file was briefly written as gx-deadcode.js and would have been the SECOND root-level .js
+# gx-sync ever placed — arming the same trap in the same two repos, and silently, because gx-sync's
+# warning for it tests for the literal name "serve.js" rather than for the mechanism. Shipping it as
+# .sh removes the whole class instead of adding a second special case to remember: a .sh file cannot
+# enter a clasp push whatever any .claspignore says.
+#
+# Embedding the analyzer in a heredoc is the same pattern gx-preflight.sh uses for its python.
+set -u
+_tmp="$(mktemp "${TMPDIR:-/tmp}/gx-deadcode.XXXXXX")" || exit 1
+trap 'rm -f "$_tmp"' EXIT INT TERM
+cat > "$_tmp" <<'NODEEOF'
 /* gx-deadcode — find top-level functions nothing can reach.  Run:  node gx-deadcode.js
  *
  * Source of truth: greencross-gx-theme/gx-deadcode.js. Synced into spokes by gx-sync.sh.
@@ -241,3 +263,6 @@ if (r.entrypoint_suspects.length) {
 
 // Informational by design — see the note at the top about push gates.
 process.exit(0);
+NODEEOF
+command -v node >/dev/null 2>&1 || { echo "gx-deadcode: node is not on PATH"; exit 1; }
+node "$_tmp"
