@@ -50,6 +50,19 @@
  * it, and the real protections (session, roleCanEdit, the secret-gated writes) are untouched. If the
  * app is genuinely unsafe to use, take the backend down; do not rely on a client-side div.
  *
+ * ── THE DEV PASS: A BYPASSED TAB STILL KNOWS THE APP IS DOWN ─────────────────────────────────────
+ * `?gxmaint=off` is how Sky keeps working on an app while staff see the out-back screen (Master
+ * Control's maintenance panel links each gated app with it). It used to return before reading any
+ * flag, so a tab holding the pass looked exactly like a normal day — and the one person able to end
+ * the outage was the one person who could not see it was still on. Now a bypassed tab reads both
+ * levers as usual, and when either gates it shows a small gold corner banner instead of the cover:
+ * maintenance is on, everyone else sees the maintenance screen, and an "End pass" button.
+ *
+ * Why an identity check was NOT added (Sky's call, 2026-09-14): the gate paints before sign-in, and
+ * each app keeps its session under a different storage key, so "let admins through" would mean seven
+ * app edits and still need this link while signed out. Since the cover is not a security boundary
+ * anyway, a list of who may pass would keep out nobody the link does not. "Me" is whoever holds it.
+ *
  * ── IT UN-GATES ITSELF ───────────────────────────────────────────────────────────────────────────
  * While gated it re-checks every 20s and tears itself down when both flags clear, so the app comes
  * back without anyone clicking anything — which matters for the Leaderboard kiosks, where nobody is
@@ -118,7 +131,9 @@
     'almost there. do not refresh 40 times.',
   ];
 
-  var cfg = null, wired = false, gated = false, bypassed = false, forced = false;
+  var OVERRIDE_KEY = 'gx_maint_override';
+
+  var cfg = null, wired = false, gated = false, bypassed = false, forced = false, passing = false;
   var checkedAt = 0, timers = [], startedAt = 0, lineIdx = 0, active = null;
   var prevTitle = null, prevOverflow = null, inerted = [];
   /* The two sources are tracked SEPARATELY rather than reduced to one answer per check, because they
@@ -559,7 +574,79 @@
     if (fab) fab.style.zIndex = '';
   }
 
+  /* ── The dev-pass banner ────────────────────────────────────────────────────────────────────────
+     A corner card, not a bar. A top bar covers every app's header tabs and a bottom bar runs under
+     the bug button (bottom-right, z 200); the bottom-left corner is the one place no shared chrome
+     lives. z-index 10000, level with the gate, so it stays visible over a login screen — a signed-out
+     person holding the pass still needs to be told everyone else is locked out. It never covers the
+     viewport and never inerts the app: the whole point is that the app underneath keeps working. */
+  var PASS_CSS =
+    '.gx-maint-pass{position:fixed;left:16px;bottom:16px;z-index:10000;max-width:calc(100% - 96px);' +
+      'box-sizing:border-box;display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:9px 12px;' +
+      'background:var(--gx-surface,#121715);border:1px solid var(--gx-gold,#d4a847);' +
+      'border-radius:var(--gx-radius-xl,12px);box-shadow:0 10px 30px rgba(0,0,0,.45);' +
+      'font:500 12.5px/1.4 var(--gx-font,-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif);' +
+      'color:var(--gx-text,#e6ece9);}' +
+    '.gx-maint-pass-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--gx-gold,#d4a847);' +
+      'box-shadow:0 0 6px var(--gx-gold,#d4a847);}' +
+    '.gx-maint-pass-txt{min-width:0;flex:1 1 220px;}' +
+    '.gx-maint-pass-txt strong{color:var(--gx-gold,#d4a847);font-weight:700;}' +
+    '.gx-maint-pass-txt span{display:block;color:var(--gx-text-dim,#8a958f);font-size:11.5px;}' +
+    '.gx-maint-pass-end{flex:none;background:transparent;color:var(--gx-text-dim,#8a958f);cursor:pointer;' +
+      'border:1px solid var(--gx-border-strong,#2e3733);border-radius:var(--gx-radius,6px);' +
+      'padding:6px 10px;font:600 11.5px/1 inherit;}' +
+    '.gx-maint-pass-end:hover{color:var(--gx-text,#e6ece9);border-color:var(--gx-gold,#d4a847);}';
+
+  function showPass() {
+    var doc = global.document;
+    if (doc.getElementById('gx-maint-pass')) return;
+    if (!doc.getElementById('gx-maint-pass-css')) {
+      var st = doc.createElement('style');
+      st.id = 'gx-maint-pass-css';
+      st.textContent = PASS_CSS;
+      doc.head.appendChild(st);
+    }
+    var label = cfg.appName || titleCase(cfg.app);
+    var bar = doc.createElement('div');
+    bar.id = 'gx-maint-pass';
+    bar.className = 'gx-maint-pass';
+    bar.setAttribute('role', 'status');
+    bar.innerHTML =
+      '<span class="gx-maint-pass-dot" aria-hidden="true"></span>' +
+      '<span class="gx-maint-pass-txt"><strong>' + esc(label) + ' is in maintenance mode.</strong>' +
+        '<span>Everyone else sees the maintenance screen — you are in on a dev pass.</span></span>' +
+      '<button type="button" class="gx-maint-pass-end" id="gx-maint-pass-end">End pass</button>';
+    doc.body.appendChild(bar);
+    doc.getElementById('gx-maint-pass-end').addEventListener('click', endPass);
+  }
+
+  function hidePass() {
+    var doc = global.document;
+    ['gx-maint-pass', 'gx-maint-pass-css'].forEach(function (id) {
+      var n = doc.getElementById(id);
+      if (n && n.parentNode) n.parentNode.removeChild(n);
+    });
+  }
+
+  /* Ends the pass for this tab and reloads, so what comes back is what staff see. retry() already
+     drops the query string, so the ?gxmaint=off that granted the pass does not re-grant it. */
+  function endPass() {
+    try { global.sessionStorage.removeItem(OVERRIDE_KEY); } catch (e) {}
+    retry();
+  }
+
   function apply(notice) {
+    if (bypassed) {
+      if (notice && !passing) {
+        passing = true;
+        if (global.document.body) showPass();
+        else global.document.addEventListener('DOMContentLoaded', function () { if (passing) showPass(); });
+      } else if (!notice && passing) {
+        passing = false;
+        hidePass();
+      }
+      return;
+    }
     if (notice && !gated) {
       gated = true;
       seed(notice);
@@ -579,10 +666,10 @@
   function settle() { apply(srcFile || srcCore || null); }
 
   function check(force) {
-    if (!cfg || bypassed) return Promise.resolve(false);
+    if (!cfg) return Promise.resolve(false);
     if (forced) { apply({}); return Promise.resolve(true); }
     var now = Date.now();
-    var wait = gated ? GATED_MS : IDLE_MS;
+    var wait = (gated || passing) ? GATED_MS : IDLE_MS;
     if (!force && now - checkedAt < wait) return Promise.resolve(gated);
     checkedAt = now;
 
@@ -611,22 +698,24 @@
        ?gxmaint=off works exactly once and then the reload strips it and re-gates you. */
     try {
       var p = param('gxmaint');
-      if (p !== null) global.sessionStorage.setItem('gx_maint_override', p);
-      var o = String(global.sessionStorage.getItem('gx_maint_override') || '').trim().toLowerCase();
+      if (p !== null) global.sessionStorage.setItem(OVERRIDE_KEY, p);
+      var o = String(global.sessionStorage.getItem(OVERRIDE_KEY) || '').trim().toLowerCase();
       /* Spelled out rather than run through truthy(): this is a URL param a person types, not a kv
          cell, so 'on'/'off' are the natural words for it — and truthy() is pinned to the sheet's
          vocabulary (true/1/yes/active) and must not drift to accommodate a query string. */
       bypassed = (o === 'off' || o === '0' || o === 'false' || o === 'no');
       forced   = (o === 'on' || o === '1' || o === 'true' || o === 'yes');
     } catch (e) {}
-    if (bypassed) return;
+    /* A bypassed tab no longer returns here: it keeps reading the flags so it can show the dev-pass
+       banner, and apply() routes its answer to that banner instead of the cover. */
 
     global.document.addEventListener('visibilitychange', function () {
       if (global.document.visibilityState === 'visible') check(false);
     });
     // While gated, poll on a timer as well: a kiosk is never backgrounded and never refocused, so
-    // visibilitychange alone would leave it showing this page long after the app came back.
-    global.setInterval(function () { if (gated) check(false); }, GATED_MS);
+    // visibilitychange alone would leave it showing this page long after the app came back. The
+    // dev-pass banner polls at the same cadence so it clears soon after maintenance ends.
+    global.setInterval(function () { if (gated || passing) check(false); }, GATED_MS);
 
     // No startup delay, unlike gx-updatecheck's 4s. A stale-build toast can wait for the app to
     // settle; "this app is down" is the first thing the person needs and every second before it is a
@@ -638,6 +727,7 @@
     init: init,
     check: check,
     isGated: function () { return gated; },
+    isPassing: function () { return passing; },
     // Exported for tests and for a console preview without touching a flag.
     _apply: apply, _truthy: truthy, _parseKv: parseKv, _elapsed: elapsed, _titleCase: titleCase,
     _seed: seed, _styles: styles,

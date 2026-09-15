@@ -79,6 +79,7 @@ function load(opts) {
     sessionStorage: {
       getItem: (k) => (k in store ? store[k] : null),
       setItem: (k, v) => { store[k] = String(v); },
+      removeItem: (k) => { delete store[k]; },
     },
     location: { href: 'https://greencrosscanna.github.io/app/', pathname: '/app/', hash: '',
                 replace(u) { win.__replaced = u; } },
@@ -312,6 +313,64 @@ const fetchBoom = () => () => Promise.reject(new Error('network'));
     M2.init({ app: 'inventory' });
     await new Promise((r) => setTimeout(r, 0));
     ok(!M2.isGated(), 'no override and no flag: the app is up');
+  }
+
+  console.log('\n8b. the DEV PASS — a bypassed tab still says the app is down for everyone else');
+  {
+    /* The failure this section exists for: ?gxmaint=off used to return before reading any flag, so
+       the tab holding the pass looked like a normal day. Every assertion below FAILS against that
+       code — it never fetched, so no banner could mount and the End-pass button did not exist. */
+    let body = { all: true, apps: {} };
+    let fetches = 0;
+    const { M, win, doc, byId, store } = load({
+      fetch: () => { fetches++; return Promise.resolve({ ok: true, json: () => Promise.resolve(body) }); },
+      location: { href: 'https://greencrosscanna.github.io/app/?gxmaint=off', pathname: '/app/', hash: '',
+                  replace(u) { win.__replaced = u; } },
+    });
+    M.init({ app: 'inventory', appName: 'Inventory' });
+    await new Promise((r) => setTimeout(r, 0));
+    ok(fetches > 0, 'a bypassed tab still reads the flag');
+    ok(!M.isGated() && !byId['gx-maint'], 'and the cover stays away — the app is usable');
+    ok(M.isPassing() && !!byId['gx-maint-pass'], 'but the dev-pass banner mounts');
+    const html = byId['gx-maint-pass'].innerHTML;
+    ok(html.indexOf('Inventory is in maintenance mode') >= 0, 'it names the app and says maintenance is on');
+    ok(html.indexOf('Everyone else sees the maintenance screen') >= 0, 'and that everyone else is locked out');
+    ok(doc.title === 'App', 'the tab title is left alone — this tab is not down');
+    ok(doc.body.children.every((n) => n.id === 'gx-maint-pass' || !n.inert), 'nothing in the app is inerted');
+
+    const css = doc.getElementById('gx-maint-pass-css').textContent;
+    ok(/\.gx-maint-pass\{[^}]*z-index:10000/.test(css), 'z-index 10000 — still visible over a 9999 login screen');
+    ok(!/\.gx-maint-pass\{[^}]*inset:0/.test(css), 'and it is a corner card, never a full-viewport cover');
+
+    body = { all: false, apps: {} };
+    await M.check(true);
+    ok(!M.isPassing() && !byId['gx-maint-pass'], 'when maintenance ends the banner removes itself');
+    ok(!doc.getElementById('gx-maint-pass-css'), 'and so does its stylesheet');
+
+    body = { all: false, apps: { inventory: true } };
+    await M.check(true);
+    ok(M.isPassing() && !M.isGated(), 'it comes back if maintenance is switched on again mid-session');
+
+    byId['gx-maint-pass-end'].click();
+    ok(!('gx_maint_override' in store), 'End pass clears the stored override');
+    ok(typeof win.__replaced === 'string' && win.__replaced.indexOf('gxmaint') < 0,
+       'and reloads WITHOUT the ?gxmaint param, so the pass is not re-granted by its own URL');
+  }
+  {
+    const { M, byId } = load({
+      fetch: fetchOK({ all: false, apps: {} }),
+      location: { href: 'https://x/app/?gxmaint=off', pathname: '/app/', hash: '', replace() {} },
+    });
+    M.init({ app: 'sales' });
+    await new Promise((r) => setTimeout(r, 0));
+    ok(!M.isPassing() && !byId['gx-maint-pass'], 'a pass on a day with no maintenance shows nothing');
+  }
+  {
+    // Staff (no pass) are unchanged: the cover, not the banner.
+    const { M, byId } = load({ fetch: fetchOK({ all: true }) });
+    M.init({ app: 'sales' });
+    await new Promise((r) => setTimeout(r, 0));
+    ok(M.isGated() && !!byId['gx-maint'] && !byId['gx-maint-pass'], 'without the pass it is still the full cover, no banner');
   }
 
   console.log('\n9. it renders, then tears itself back down when the flag clears');
