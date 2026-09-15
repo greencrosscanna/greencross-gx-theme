@@ -11,9 +11,14 @@ feature bake):** match the flow to the change.
     exposing staff via a **`cfg.<feature>` flag** (ship dark, flip on from the cockpit) or a local
     preview; the versioned proxy stages backend without repointing the live one. On merge → **`dev_ship`**.
   - Test: *"Would staff notice it mid-bake / does it change their workflow?"* → branch. Trivial/invisible → direct.
-- **Pre-launch apps** (`spiff`, `crew`) work **direct on `main`** for everything, feature or fix —
-  they have no real users yet, so there is nobody to protect from a half-built screen and a PR buys
-  nothing. Move them onto the rule above the day they reach staff.
+- **Pre-launch apps** — `spiff` only — work **direct on `main`** for everything, feature or fix: no
+  real users yet, so there is nobody to protect from a half-built screen and a PR buys nothing. Move an
+  app onto the rule above the day it reaches staff.
+- **`crew` is LIVE and runs payroll**, so it follows the Pages-hosted rule above: features go `feat/…` +
+  PR with **Sky merging**, small fixes ship direct. *Corrected 2026-09-15* — this clause named `crew`
+  pre-launch for three weeks after it stopped being true (Mike's Monday digest has had a real recipient
+  since the week of 2026-08-25). A rule that names a VERSION rots visibly when somebody re-pins; a rule
+  that names a STATE rots silently, because nothing evaluates the state.
 - **GX Core / the shared `GXCore` library** (`core-admin`) **keep PR + versioned discipline** — library
   versions are immutable and pinned by every spoke, so a bad one silently breaks all apps. (`core-admin`
   itself deploys directly with Sky watching, but treats library-version cuts as gated.)
