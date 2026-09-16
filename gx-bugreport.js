@@ -430,7 +430,22 @@
           // Carried INTO the report, not just shown on screen: whoever triages this needs to know a
           // picture was meant to be here and why it is missing, long after the toast is gone.
           shotFailed = up.error || 'Could not upload the screenshot';
-          payload.detail = String(payload.detail || '') +
+          /* APPEND TO `desc`, THE FIELD THIS FORM ACTUALLY OWNS — not `detail`.
+           *
+           * This wrote to `payload.detail`, a key the payload above never sets, and it cost the note
+           * in every app and the REPORT ITSELF in one:
+           *
+           *   - Every spoke re-packs the payload server-side with an explicit field list
+           *     (`desc: b.desc, …`) and none of them mentions `detail`, so the note was dropped one
+           *     line short of the board — exactly the gap performance reported on 2026-09-15.
+           *   - Worse, Core reads `payload.detail || payload.desc` (gx_core.gs, gxIngestBug). Master
+           *     Control hands its payload straight to Core, so a failed upload there meant `detail`
+           *     held ONLY this bracketed sentence and WON — the user's written description was
+           *     replaced by the apology for the missing picture.
+           *
+           * `desc` is what the textarea fills, what every transport forwards and what Core falls back
+           * to, so the note now rides along with the words instead of competing with them. */
+          payload.desc = String(payload.desc || '') +
             '\n\n[a screenshot was attached but could not be uploaded: ' + shotFailed + ']';
         }
         if (up && up.url) { shotUrl = up.url; payload.screenshot_url = up.url; }

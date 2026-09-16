@@ -34,10 +34,40 @@
 (function (global) {
   'use strict';
 
-  var cfg = null, latest = null, checkedAt = 0, wired = false;
+  var cfg = null, latest = null, checkedAt = 0, wired = false, reloadPending = false;
   var THROTTLE_MS = 5 * 60 * 1000;
   var FIRST_CHECK_MS = 4000;
   var RELOAD_RETRY_MS = 2 * 60 * 1000;   // a kiosk's wait before reloading for the same version again
+  var RELOAD_SPREAD_MS = 60 * 1000;      // how wide a fleet's reloads are spread — see JITTER below
+
+  /* JITTER — WHY EVERY TIMER IN THIS FILE IS RANDOMIZED ─────────────────────────────────────────
+   *
+   * Every app in the suite runs as the same Google account, and Google caps that account at 30
+   * simultaneous executions. On 2026-09-15 the whole suite hit 114 at once at 12:24 PM: 183 starts
+   * in a single minute, 97 of them GX Core and 86 Leaderboard, against a normal 6-9 a minute.
+   * Leaderboard read its own Executions log and found the shape — clients failing while the account
+   * was full, then all retrying on the same beat when capacity came back. A synchronized retry
+   * recreates the crowd that caused it, so it can repeat.
+   *
+   * GXClient's retries were ALREADY jittered (+/-50%, gx-client.js backoffFor, shipped 2026-09-02),
+   * which is worth stating because the note that prompted this asked for that half too. The timers
+   * HERE were the ones still firing in lockstep, and they are the ones that line a FLEET up rather
+   * than one page's attempts:
+   *
+   *   · the boot check, a fixed 4s after load — kiosks that boot together (a power blip, a
+   *     synchronized reload) all ask version_history at the same instant
+   *   · the re-check after a reload that came back stale, a fixed 2 minutes
+   *   · the reload itself: every kiosk that notices a new build in the same window reloads on it,
+   *     and each reload is a fresh page asking Core for everything at once
+   *
+   * Leaderboard already jittered its own two kiosk timers locally (index.html, v1.843). This is the
+   * shared layer catching up, so the other five apps get it without each writing their own.
+   *
+   * Spread, never delay-only: a wait that is always LONGER trades one synchronized burst for a later
+   * synchronized burst. What breaks a crowd up is the randomness, not the size. */
+  function jittered(base, spread) {
+    return Math.max(0, Math.round(base - spread + Math.random() * 2 * spread));
+  }
 
   /* 'v2.526' -> [2,526]. Compares segment by segment so v2.9 < v2.10, which a string compare gets
      backwards. It does NOT order two version SCHEMES against each other: a bare 'v38' is [38], which
@@ -117,6 +147,11 @@
       global.sessionStorage.setItem('gx_upd_tried', v);
       global.sessionStorage.setItem('gx_upd_tried_at', String(Date.now()));
     } catch (e) {}
+    /* The spread-reload guard covers the WAIT, not the navigation. In a browser the page is gone a
+       line from here, so clearing it changes nothing there — but leaving it set would wedge any
+       caller that survives the call (a test, or a location.replace the browser declines), and a
+       one-way flag that can only ever be set is the kind of state that is fine until it is not. */
+    reloadPending = false;
     /* A plain reload() can be served from cache, which is the whole problem. A URL the browser has
        never seen cannot be — hence the ?v=.
 
@@ -153,10 +188,19 @@
         at = parseInt(global.sessionStorage.getItem('gx_upd_tried_at'), 10) || 0;
       } catch (e) {}
       if (tried === v && Date.now() - at < RELOAD_RETRY_MS) {
-        global.setTimeout(function () { check(true); }, RELOAD_RETRY_MS);
+        // Jittered so a fleet that reloaded together does not come back and re-check together.
+        global.setTimeout(function () { check(true); }, jittered(RELOAD_RETRY_MS, RELOAD_RETRY_MS / 2));
         return;
       }
-      latest = v; apply(); return;
+      /* THE RELOAD ITSELF IS SPREAD over the next minute or so. apply() is what stamps
+         `gx_upd_tried_at`, so it must run at RELOAD time and not when the timer is set — otherwise
+         the loop guard's two-minute window starts early and shrinks by however long we waited.
+         Guarded so a second check inside the window cannot stack a second reload on the first. */
+      if (reloadPending) return;
+      reloadPending = true;
+      latest = v;
+      global.setTimeout(apply, jittered(RELOAD_SPREAD_MS / 2, RELOAD_SPREAD_MS / 2));
+      return;
     }
     show(v);
   }
@@ -200,7 +244,8 @@
     global.document.addEventListener('visibilitychange', function () {
       if (global.document.visibilityState === 'visible') check(false);
     });
-    global.setTimeout(function () { check(true); }, FIRST_CHECK_MS);
+    // Jittered: a fixed boot delay means every kiosk that powered up together asks Core together.
+    global.setTimeout(function () { check(true); }, jittered(FIRST_CHECK_MS, FIRST_CHECK_MS / 2));
   }
 
   global.GXUpdateCheck = {

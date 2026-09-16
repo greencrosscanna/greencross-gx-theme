@@ -172,9 +172,14 @@ console.log('\n8. the background check does not retry (nobody is waiting on it)'
 
 console.log('\n9. a KIOSK does not reload in a loop while Pages still serves the old build');
 (async () => {
-  const timers = [];
+  /* THE TIMERS MUST BE RUNNABLE, not just counted. A kiosk's reload is SPREAD over the next minute
+     (gx-updatecheck's jitter — see its JITTER comment), so a harness whose setTimeout only records
+     `ms` and never calls `fn` sees zero reloads and reports a broken kiosk. Record both and fire
+     them on demand, which also lets these assertions check the SIZE of each wait. */
+  let timers = [];
+  const runTimers = () => { const due = timers; timers = []; due.forEach(t => t.fn()); };
   const mkKiosk = () => {
-    const t = load({ setTimeout: (fn, ms) => { timers.push(ms); return 0; },
+    const t = load({ setTimeout: (fn, ms) => { timers.push({ fn: fn, ms: ms }); return 0; },
       location: { pathname: '/greencross-leaderboard/', hash: '', replace(u) { t.win.__replaced = u; } } });
     t.win.location.replace = (u) => { t.win.__replaced = u; };
     return t;
@@ -187,16 +192,31 @@ console.log('\n9. a KIOSK does not reload in a loop while Pages still serves the
   k.win.location.replace = (u) => { reloads++; k.win.__replaced = u; };
   k.U.check(true);
   await Promise.resolve(); await Promise.resolve();
-  ok(reloads === 1, 'first sight of a newer release → the kiosk reloads itself');
+  /* SPREAD, NOT IMMEDIATE. Every kiosk that notices the same new build in the same window used to
+     reload on the same instant, and each reload is a fresh page asking GX Core for everything at
+     once — part of the 114-simultaneous-executions burst measured across the suite on 2026-09-15.
+     The reload still happens; it is just scattered across the next minute. */
+  const reloadWait = timers.filter(t => t.ms > 0).map(t => t.ms).pop();
+  ok(reloads === 0, 'the kiosk does NOT reload on the same instant it sees the build — that is the herd');
+  ok(reloadWait !== undefined && reloadWait >= 0 && reloadWait <= 60000,
+     'it schedules the reload somewhere inside the next minute (got ' + reloadWait + 'ms)');
+  runTimers();
+  ok(reloads === 1, 'and when that wait elapses, the kiosk reloads itself');
   // The reload came back STILL on v1.770 (Pages lag). Same tab, same sessionStorage: check again.
-  timers.length = 0;
+  timers = [];
   k.U.check(true);
   await Promise.resolve(); await Promise.resolve();
+  const recheckWait = timers.map(t => t.ms).pop();
   ok(reloads === 1, 'the same version again within 2 minutes → NO second reload (this was a loop)');
-  ok(timers.some(ms => ms >= 60000), '…and it schedules a re-check, because a kiosk never changes visibility');
+  ok(recheckWait >= 60000, '…and it schedules a re-check, because a kiosk never changes visibility');
+  /* The re-check is jittered too — 2 minutes +/- 1 — so a fleet that reloaded together does not come
+     back and ask together. A fixed wait just moves the crowd two minutes later. */
+  ok(recheckWait <= 180000, 'and that re-check is jittered rather than a fixed beat (got ' + recheckWait + 'ms)');
+  timers = [];
   k.store['gx_upd_tried_at'] = String(Date.now() - 3 * 60 * 1000);
   k.U.check(true);
   await Promise.resolve(); await Promise.resolve();
+  runTimers();
   ok(reloads === 2, 'once the wait has passed it tries again, so a slow Pages cannot strand it on the old build');
 
   console.log('\n10. a kiosk follows EVERY deploy; a person is prompted only for releases with notes');
@@ -211,6 +231,7 @@ console.log('\n9. a KIOSK does not reload in a loop while Pages still serves the
   kiosk.win.location.replace = () => { kioskReloads++; };
   kiosk.U.check(true);
   await Promise.resolve(); await Promise.resolve();
+  runTimers();
   ok(kioskReloads === 1, 'kiosk on v1.770, v1.776 deployed WITHOUT notes → it reloads (read `releases` and it sat on v1.770)');
 
   const person = load();

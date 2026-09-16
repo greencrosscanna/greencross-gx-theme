@@ -359,16 +359,29 @@ console.log('\nS3. a failed upload files the report anyway, and says so');
   });
   GXB.open();
   doc.getElementById('gxBugTitle').value = 'it broke';
+  doc.getElementById('gxBugDesc').value = 'the numbers are wrong on the second tab';
   const file = doc.getElementById('gxBugShotFile');
   file.files = [{ name: 'shot.png', type: 'image/png', size: 2048 }];
   (file._listeners.change || []).forEach(fn => fn());
   click(doc, 'gxBugSubmit');
   await tick(); await tick(); await tick();
   ok(submitted === true, 'the report IS sent even though the upload was refused');
-  ok(sent && /it broke/.test(String(sent.title) + String(sent.detail || '')), 'and it carries what was written');
-  ok(sent && /could not be uploaded/.test(String(sent.detail || '')),
-     'the detail records that a screenshot was meant to be here');
-  ok(sent && /over 10MB/.test(String(sent.detail || '')), 'and the actual reason, not a generic failure');
+  /* ASSERT ON THE WRITTEN WORDS, not on the title. This read `String(sent.title) + String(sent.detail)`
+     and the title alone satisfied it — so it passed no matter what happened to the description, which
+     is the one thing this section exists to protect. */
+  ok(sent && /the numbers are wrong on the second tab/.test(String(sent.desc || '')),
+     'and the description the person actually typed is still there, intact');
+  ok(sent && /could not be uploaded/.test(String(sent.desc || '')),
+     'with a line saying a screenshot was meant to be here');
+  ok(sent && /over 10MB/.test(String(sent.desc || '')), 'and the actual reason, not a generic failure');
+  /* THE FIELD IS THE BUG. This note used to be written to `payload.detail`, which the payload never
+     otherwise sets. Two costs, both measured on 2026-09-15: every spoke re-packs the payload
+     server-side from an explicit field list that names `desc` and not `detail`, so the note never
+     reached the board; and Core reads `payload.detail || payload.desc`, so in Master Control — which
+     forwards the payload whole — a bare `detail` WON and the user's description vanished, replaced by
+     the apology for the missing picture. An extra key here is not harmless. */
+  ok(sent && sent.detail === undefined,
+     'and NO bare `detail` key is invented — at Core it would outrank desc and replace the report');
   ok(sent && sent.screenshot_url === undefined, 'no screenshot_url is invented');
   ok(/screenshot could not be attached/i.test(doc.getElementById('gxBugSuccess').textContent || ''),
      'and the person is told the picture did not make it — never a clean "Reported!"');
@@ -392,7 +405,8 @@ console.log('\nS3b. an upload that THROWS is treated the same as one that refuse
   click(doc, 'gxBugSubmit');
   await tick(); await tick(); await tick();
   ok(submitted === true, 'a rejected uploadShot still files the report');
-  ok(sent && /network died mid-upload/.test(String(sent.detail || '')), 'carrying the thrown reason');
+  ok(sent && /network died mid-upload/.test(String(sent.desc || '')), 'carrying the thrown reason');
+  ok(sent && sent.detail === undefined, 'in desc, not a bare detail key — see S3');
 }
 
 console.log('\nS4. no image attached → unchanged behavior');
