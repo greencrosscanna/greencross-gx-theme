@@ -43,6 +43,37 @@
   var _uid   = 0;
   var _nonce = Math.random().toString(36).slice(2, 8);
 
+  /* ── WHO IS CALLING ───────────────────────────────────────────────────────────────────────────
+   *
+   * GX Core counts traffic per app from an `app=` parameter, and that parameter was OPT-IN AT EVERY
+   * CALL SITE. Measured on the live cockpit 2026-09-16, first day the execution-load panel had real
+   * traffic: 653 of 870 calls — 80.6% of execution time — arrived unattributed. Counted across the
+   * suite, roughly one call site in five passes `app`: leaderboard 21 of ~116, spiff 29 of ~104,
+   * crew 12 of ~68. So the "which app is loudest" ranking was sorting the fifth that volunteered a
+   * name, and "Leaderboard 14.5%" meant 14.5% OF THE LABELED FIFTH, not of the load.
+   *
+   * That ranking exists to answer one question — whether Leaderboard should move to its own Google
+   * account, away from the 30-execution ceiling every GX app shares. It could not answer it.
+   *
+   * IDENTITY COMES FROM THE SCRIPT TAG, because this file cannot know it any other way: all six apps
+   * load THE SAME FILE by URL from Pages, so nothing can be baked in, and gx-sync's `__APP__`
+   * substitution never reaches it. `document.currentScript` is only valid while the script is
+   * executing, so it is read HERE at load time rather than later inside a call.
+   *
+   * NOT DERIVED FROM THE PAGE URL. `greencross-leaderboard` is app key `performance`, and that
+   * mapping is not derivable — it would need a hardcoded table, which is exactly the kind that rots
+   * silently and then mislabels traffic, which is worse than not labeling it.
+   *
+   * ABSENT THE ATTRIBUTE THIS FILE BEHAVES EXACTLY AS BEFORE, byte for byte: no app parameter is
+   * added and nothing else changes. An app opts in by adding data-app to its own script tag, so this
+   * can ship to the shared layer — which reaches every app inside the 10-minute cache with no deploy
+   * and no review — without moving anything for an app that has not opted in yet. */
+  var _tagApp = '';
+  try {
+    var _s = (typeof document !== 'undefined' && document.currentScript) || null;
+    _tagApp = (_s && (_s.getAttribute('data-app') || '')).trim().toLowerCase();
+  } catch (e) { _tagApp = ''; }
+
   function GXClient(baseUrl, defaults) {
     defaults = defaults || {};
     var RETRIES  = defaults.retries   != null ? defaults.retries   : 4;      // total attempts = RETRIES + 1
@@ -230,9 +261,16 @@
       health: 1, config: 1, stores: 1, apps: 1, version_history: 1, published_goals: 1, grants: 1
     };
 
+    /* defaults.app beats the script tag, so a page holding TWO clients — its own engine and GX Core —
+       can name them separately. An explicit params.app beats both: a call that deliberately asks on
+       another app's behalf (version_history for a spoke, say) must keep saying so. See _tagApp. */
+    var APP = String(defaults.app || _tagApp || '').trim().toLowerCase();
+
     function buildUrl(action, params, extra) {
       var u = new URL(baseUrl);
       u.searchParams.set('action', action);
+      // Before params, never after: an explicit app in params must win by overwriting this.
+      if (APP) u.searchParams.set('app', APP);
       if (params) Object.keys(params).forEach(function (k) { if (params[k] != null) u.searchParams.set(k, params[k]); });
       if (extra)  Object.keys(extra).forEach(function (k) { u.searchParams.set(k, extra[k]); });
       return u.toString();
@@ -609,7 +647,8 @@
       throw new Error('GX postJSON "' + action + '" failed after ' + (retries + 1) + ' tr' + (retries ? 'ies' : 'y') + ': ' + (lastErr && lastErr.message));
     }
 
-    return { jsonp: jsonp, getJSON: getJSON, postJSON: postJSON, buildUrl: buildUrl, base: baseUrl, _congested: congested };
+    // `app` is exposed so a page can assert what it is reporting as, rather than reading a URL back.
+    return { jsonp: jsonp, getJSON: getJSON, postJSON: postJSON, buildUrl: buildUrl, base: baseUrl, app: APP, _congested: congested };
   }
 
   global.GXClient = GXClient;
