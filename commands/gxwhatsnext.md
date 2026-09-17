@@ -96,6 +96,9 @@ sequence, kept fresh in the CC.
    entries and in-flight jobs both carry one, and a line like `job_mtg9vyxs_ewd9 — working` is unreadable:
 
    <!-- @include _naming.md -->
+
+   <!-- @include _list-format.md -->
+
    - **In flight** (`inFlight`: queued / working / in_review jobs) — surface these first and **do NOT
      re-dispatch or rebuild them**. If one is `in_review` with a PR, the next move is to review/merge it.
    - **Open bugs** (`bugs`) — **broken behavior outranks a good idea.** These come back on the same
