@@ -79,10 +79,27 @@ const REPO = process.cwd();
  * commonest case, reporting success while testing nothing. Twice in one file is the argument for
  * running a new test against every real engine and then disbelieving the passes. */
 const EXITS = [
-  { kind: 'reply', re: /\.\s*createTextOutput\s*\(\s*[^)\s]/ },
-  { kind: 'reply', re: /\.\s*setContent\s*\(\s*[^)\s]/ },
-  { kind: 'mail', re: /\b(?:MailApp|GmailApp)\s*\.\s*sendEmail\s*\(/ },
+  { kind: 'reply', keyword: 'createTextOutput', re: /createTextOutput\s*\(\s*[^)\s]/ },
+  { kind: 'reply', keyword: 'setContent', re: /setContent\s*\(\s*[^)\s]/ },
+  { kind: 'mail', keyword: 'sendEmail', re: /\b(?:MailApp|GmailApp)\s*\.\s*sendEmail\s*\(/ },
 ];
+/* MATCHED OVER A SMALL WINDOW, NOT ONE LINE, because Apps Script source wraps in at least three ways
+ * and each one has hidden an exit in this suite:
+ *
+ *     return ContentService                       <- keyword on the NEXT line (leaderboard)
+ *       .createTextOutput(body)
+ *
+ *     return ContentService.createTextOutput(     <- ARGUMENT on the next line
+ *       body
+ *     ).setMimeType(...)
+ *
+ * The first cost a vacuous pass on greencross-leaderboard, whose only reply builder was invisible to
+ * this test while it was unscrubbed. The second was found by writing a fixture for the first rather
+ * than taking the fix on trust — nobody had named it, and it would have gone on passing.
+ *
+ * The keyword must appear on the line being reported, so a call is counted once and at its own line
+ * number; the window only supplies what comes after it. */
+const WINDOW = 3;
 /* NOT ANCHORED BEFORE THE KEYWORD, and this file got it wrong first time round in the exact shape it
    was written to catch. The original was /\b[A-Za-z_$][\w$]*(?:scrub|redact|sanitiz)…/ — one
    character of prefix REQUIRED — so `scrubSecrets_(`, where the word starts the identifier, never
@@ -147,8 +164,10 @@ for (const file of sources) {
   const lines = fs.readFileSync(file, 'utf8').split('\n');
   lines.forEach((line, i) => {
     if (line.trim().startsWith('*') || line.trim().startsWith('//')) return;   // a mention in prose
+    const window = lines.slice(i, i + WINDOW).join(' ');
     for (const exit of EXITS) {
-      if (!exit.re.test(line)) continue;
+      if (line.indexOf(exit.keyword) === -1) continue;   // report it at ITS line, once
+      if (!exit.re.test(window)) continue;
       const where = `${path.relative(REPO, file)}:${i + 1}`;
       const context = lines.slice(Math.max(0, i - 3), i + 2).join('\n');
       const fn = enclosing(lines, i);
