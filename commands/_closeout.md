@@ -81,6 +81,18 @@ Rough calibration, and it is about the SHAPE of the task, not its importance:
 An item waiting on Sky carries no model: nothing runs until he answers, and a model name there
 implies work is queued when it is not.
 
+**If you hand an item to a new session, tell it to acknowledge and STOP.** A task chip (`spawn_task`)
+opens the item in its own session on one click, and that is worth doing — the task text travels, so
+the new chat does not open by asking Sky what he meant. But **the chip carries no model**: the new
+session starts on the default and begins working at once. So end every chip prompt with an explicit
+instruction to acknowledge the task in one line, start nothing, and wait. The spawning session then
+sets the model (`set_session_model`) and messages it to begin.
+
+Skipping that line costs an interrupt mid-turn — which is how this rule was found on 2026-09-17: the
+first chip launched, started on the wrong model, and had to be stopped, re-modeled and restarted
+while it was already reading the repo. Sky's words: *"have it just acknowledge the task, then switch
+models before it starts working."*
+
 ```
 [5] Bug form blames your connection for every failure, hiding the real reason — Sonnet 5
 [6] Brain notes default to collapsed instead of expanded — Haiku 4.5
