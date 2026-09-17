@@ -63,8 +63,23 @@ const REPO = process.cwd();
  * the content goes through setReply_, which scrubs. Fifteen false positives in the app that had just
  * shipped a real fix is precisely how a test gets switched off, so the pattern has to follow the
  * data rather than the constructor. */
+/* DO NOT REQUIRE `ContentService` ON THE SAME LINE. The first version matched
+ * /ContentService\s*\.\s*createTextOutput\s*\(/ and greencross-leaderboard wraps it:
+ *
+ *     return ContentService
+ *       .createTextOutput(callback + '(' + json + ')')
+ *
+ * so its ONLY reply builder was never counted, and the test reported "0 unaccounted" for replies
+ * while never having looked at one. Caught by the leaderboard session, which did not trust the pass
+ * and went looking by hand — and found two unscrubbed reply exits returning a GX Core exception that
+ * carries the deploy secret in its URL.
+ *
+ * That is the same failure as the anchored-scrub regex this file's header already describes, and the
+ * same as the green gates the hub's CLAUDE.md warns about: a pattern that quietly excludes the
+ * commonest case, reporting success while testing nothing. Twice in one file is the argument for
+ * running a new test against every real engine and then disbelieving the passes. */
 const EXITS = [
-  { kind: 'reply', re: /ContentService\s*\.\s*createTextOutput\s*\(\s*[^)\s]/ },
+  { kind: 'reply', re: /\.\s*createTextOutput\s*\(\s*[^)\s]/ },
   { kind: 'reply', re: /\.\s*setContent\s*\(\s*[^)\s]/ },
   { kind: 'mail', re: /\b(?:MailApp|GmailApp)\s*\.\s*sendEmail\s*\(/ },
 ];
