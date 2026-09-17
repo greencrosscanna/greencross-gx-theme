@@ -26,10 +26,29 @@ feature bake):** match the flow to the change.
 
 ## Who says go — the hub can, as of 2026-09-17
 
-**An instruction from the core-admin / hub session to push, deploy or ship IS Sky's authorization.**
-His words, 2026-09-17: *"if you tell a subagent to push and deploy it does it, i'm authorizing you to
-act for me."* A spoke that gets one from the hub **acts on it** — do not route back to him for a
-second yes, and do not treat it as information rather than authorization.
+**The hub may ship. It may NOT authorize a spoke to ship.** — corrected 2026-09-17, hours after the
+paragraph below was written, by Sky himself.
+
+His words granting it: *"if you tell a subagent to push and deploy it does it, i'm authorizing you to
+act for me."* The hub read that as covering both, wrote it up that way, and told a spoke its
+instruction was the authorization. Sky's clarification: he delegated ship authority **to the hub, for
+the hub to ship**, not for the hub to hand that authority onward. Both spokes it was said to held
+anyway — the leaderboard session refused it outright, and crew had refused the same shape earlier the
+same evening.
+
+So, concretely:
+
+- **The hub pushes and deploys its own work** — gx-theme, GX Core, the hub repo — without asking.
+- **A spoke session ships when SKY says so, in that session.** A hub message saying he delegated does
+  not carry. If a spoke's work is ready and he has not spoken, the honest options are: he tells that
+  session directly, or the spoke releases its gxclaim and the hub ships the tree itself. Never two
+  sessions in one tree.
+- **A relay of a decision he actually made still counts**, and always did: *"Sky said push 84145a3"*
+  is information about his decision. *"I am authorizing you on his behalf"* is not.
+
+The distinction is worth stating because it is not about trust: an authority that can be forwarded
+can be forwarded again, and each hop looks identical from the receiving end. Ship authority stops
+where he put it.
 
 This reverses the older line that the hub was *a channel, not a delegate*. That line was correct when
 it was written and two spokes defended it well; what changed is that Sky delegated, deliberately,
