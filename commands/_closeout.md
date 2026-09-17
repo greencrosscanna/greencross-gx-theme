@@ -49,8 +49,13 @@ its id**. No re-litigating priorities and no essay per item; he is picking, not 
 names a number, start it: rename this chat to it (`set_session_title`, `session_id: "self"`) and register
 it with `dev_start` exactly as `/gxwhatsnext` step 5 says.
 
-<!-- @include _list-format.md -->
-
+**Write that list the way `_list-format.md` says** — every to-do carries an `[N]` including one you
+just discovered, additions are marked `-NEW`, each item ends with the model to run it on, and a task
+chip acknowledges and waits so the model is set before work starts. It is not restated here: this
+file is a partial and the installer refuses a partial that includes another, so `_list-format.md` is
+pulled in by the top-level command instead (`/gxwhatsnext` step 4, `/gxbrain`) and is already in the
+same expanded file you are reading. Its own source of truth is `~/.claude/CLAUDE.md`, which loads in
+every session regardless.
 
 If the fetch comes back empty — nothing in flight, nothing sequenced — say so plainly in one line rather
 than inventing something to offer.

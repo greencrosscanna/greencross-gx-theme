@@ -69,6 +69,8 @@ with the one-line status.
 
 <!-- @include _naming.md -->
 
+<!-- @include _list-format.md -->
+
 <!-- @include _closeout.md -->
 
 

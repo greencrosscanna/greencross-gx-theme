@@ -55,7 +55,7 @@ marker alone on its own line:
 | `_ship-policy.md` | direct-to-main vs `feat/` branch, and why | gxbrain, gxwhatsnext |
 | `_notes-discipline.md` | message a live session first, read inbox/bugs, resolve-don't-reply, `kind`, outbox | gxbrain |
 | `_closeout.md` | offer to ship, when to recommend a fresh session, then offer to archive | gxbrain, gxwhatsnext |
-| `_list-format.md` | how a numbered board is written: every to-do gets an `[N]`, `-NEW` marks additions, each item names its model, a handed-off session acknowledges and waits | gxwhatsnext (step 4), `_closeout.md` |
+| `_list-format.md` | how a numbered board is written: every to-do gets an `[N]`, `-NEW` marks additions, each item names its model, a handed-off session acknowledges and waits | gxwhatsnext (step 4), gxbrain |
 | `_naming.md` | name things by subject, never by id | gxbrain, gxwhatsnext, gxbug |
 
 `gx-commands-sync.sh` expands these when it installs, so the file that lands in `~/.claude/commands` is
