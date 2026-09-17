@@ -49,6 +49,13 @@ its id**. No re-litigating priorities and no essay per item; he is picking, not 
 names a number, start it: rename this chat to it (`set_session_title`, `session_id: "self"`) and register
 it with `dev_start` exactly as `/gxwhatsnext` step 5 says.
 
+> **These list rules are GLOBAL, and `~/.claude/CLAUDE.md` is the source.** Sky, 2026-09-17: *"this
+> should be used globably."* Numbering every to-do, the `-NEW` marker, the model per item and the
+> acknowledge-then-wait handshake are not GX conventions — they apply wherever work is handed off, and
+> the global file loads in every session including this one. What follows is the suite's echo, kept
+> because spoke sessions read this file when picking up work. **If the two disagree, the global file
+> wins**, and fix this one rather than leaving a rule with two homes drifting apart.
+
 **A to-do YOU discovered gets a number too — never raise one in the prose above the list.** His words,
 2026-09-17: *"if you create a new thing i need to do, you need to add it to the list of items [N], you
 blend it in and its confusing."* The list is the interface: he picks by number, so an item introduced in
