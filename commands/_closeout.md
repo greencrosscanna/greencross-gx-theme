@@ -49,6 +49,28 @@ its id**. No re-litigating priorities and no essay per item; he is picking, not 
 names a number, start it: rename this chat to it (`set_session_title`, `session_id: "self"`) and register
 it with `dev_start` exactly as `/gxwhatsnext` step 5 says.
 
+**A to-do YOU discovered gets a number too — never raise one in the prose above the list.** His words,
+2026-09-17: *"if you create a new thing i need to do, you need to add it to the list of items [N], you
+blend it in and its confusing."* The list is the interface: he picks by number, so an item introduced in
+a paragraph is invisible to that motion — he either misses it or re-reads the whole reply to work out
+whether it was a task or commentary. Offering it as optional does not exempt it. *"Add [7] if you want
+it tracked"* is still a decision he has to make, so it is still `[7]`, in the list, phrased as an item.
+
+This is the same failure as the recap rule below — *"nothing for you to do"* followed by things to do —
+and it arrived the same evening, one message after it. Both are a reply that says where to look and then
+puts something load-bearing somewhere else.
+
+**Mark anything added since he last saw the list with a trailing `-NEW`** (his ask, immediately after).
+Re-listing the whole board is right, and it has a cost: the one item that moved is now sitting among six
+he has already read past, indistinguishable from them. The marker is what makes re-listing worth doing —
+it shows the delta without him diffing two lists by eye. Drop it once he has seen that list.
+
+```
+[6] Shared loading screen in the theme, and where it shows
+[7] Audit Sales' and Crew's credential-leak checks — nobody has asked whether they find
+    every leak point or only the ones their author knew about -NEW
+```
+
 If the fetch comes back empty — nothing in flight, nothing sequenced — say so plainly in one line rather
 than inventing something to offer.
 
