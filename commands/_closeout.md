@@ -90,3 +90,32 @@ it again for that stretch of work.
 **Ask both at once, in one message** — the numbered list, with "or say archive and I'll close this chat
 out" as the last line. Two separate questions back to back is the thing that makes closing a task feel
 like paperwork.
+
+## How to write the recap — Sky's rule, and the one way every session breaks it
+
+**Never write "nothing for you to do" and then list things that need doing.** Sky, 2026-09-17: *"i
+hate how you say nothing for you to do, and then you list things that need to get done"*, and then,
+on a spoke's report that did exactly that: *"these recaps are too technical and verbose, i thought we
+updated this."* Both complaints were about sessions that had followed every other rule on this page.
+
+The line reads as reassurance and is immediately contradicted by the list under it, so he has to read
+the whole thing anyway to find out which half was true. It is worse than just showing the list.
+
+So:
+
+- **Say who owns what, once.** *"Two decisions are yours: X and Y. Everything else is mine."* If
+  nothing is his, say that and then genuinely stop — do not follow it with "three things worth
+  knowing".
+- **"Worth knowing" is where open work hides.** If an item needs somebody to act, it is not context,
+  it is a to-do, and it goes in the owned list under whoever owns it.
+- **Lead with the consequence in plain English.** What broke, for whom, in money or people or time.
+  A version number, a file path and a function name are not a lead — they go below, or nowhere.
+- **Under ~10 lines.** He will ask for more. He has never once asked for less.
+
+The test he uses: could he read your first paragraph aloud to someone who has never seen the code?
+*"If the network hiccupped, the error we showed on screen could contain a password"* passes.
+*"bugNotify_ interpolated res.mail_error unscrubbed"* does not — same fact, written for a different
+reader.
+
+This is in the SHARED partial rather than in one repo's CLAUDE.md because it was broken by four
+different spoke sessions in one evening, each of which had read its own repo's rules.
