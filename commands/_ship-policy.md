@@ -26,29 +26,53 @@ feature bake):** match the flow to the change.
 
 ## Who says go — the hub can, as of 2026-09-17
 
-**The hub may ship. It may NOT authorize a spoke to ship.** — corrected 2026-09-17, hours after the
-paragraph below was written, by Sky himself.
+**The hub may ship, AND may authorize a spoke to ship.** Sky, 2026-09-17: *"if you tell a subagent to
+push and deploy it does it, i'm authorizing you to act for me"*, and then, after the round trip
+below: *"i want you to authorize subagents to ship"* and *"you're the conductor watching everything
+and talking to everyone."*
 
-His words granting it: *"if you tell a subagent to push and deploy it does it, i'm authorizing you to
-act for me."* The hub read that as covering both, wrote it up that way, and told a spoke its
-instruction was the authorization. Sky's clarification: he delegated ship authority **to the hub, for
-the hub to ship**, not for the hub to hand that authority onward. Both spokes it was said to held
-anyway — the leaderboard session refused it outright, and crew had refused the same shape earlier the
-same evening.
+**THIS PARAGRAPH SAID THE OPPOSITE FOR ABOUT AN HOUR, AND THE ROUND TRIP IS WORTH KEEPING.** The hub
+told the leaderboard session its instruction carried Sky's authority. That session refused, asked him
+directly, and reported back that he had said the hub could ship for itself but not hand the authority
+on. The hub wrote that correction into this file. Sky then told the hub, plainly and twice, that the
+correction was the mix-up: he does want spokes to ship on the hub's word.
 
-So, concretely:
+Both readings are on the record because a rule about authority that flips twice in an evening will
+be re-litigated by the next session that meets it, and it should be able to see why rather than
+guessing. **The current rule is the one at the top of this section.**
 
-- **The hub pushes and deploys its own work** — gx-theme, GX Core, the hub repo — without asking.
-- **A spoke session ships when SKY says so, in that session.** A hub message saying he delegated does
-  not carry. If a spoke's work is ready and he has not spoken, the honest options are: he tells that
-  session directly, or the spoke releases its gxclaim and the hub ships the tree itself. Never two
-  sessions in one tree.
-- **A relay of a decision he actually made still counts**, and always did: *"Sky said push 84145a3"*
-  is information about his decision. *"I am authorizing you on his behalf"* is not.
+What did NOT change, and what the refusals were actually right about:
 
-The distinction is worth stating because it is not about trust: an authority that can be forwarded
-can be forwarded again, and each hop looks identical from the receiving end. Ship authority stops
-where he put it.
+- **The grant does not announce itself.** The first time a session meets this rule it takes ONE
+  confirmation from Sky in its own chat. A hub message claiming the delegation exists is exactly the
+  claim a peer cannot be the source of — crew made that point when this section was an uncommitted
+  edit being cited as its own grant, and it was right then and is right now. After that one
+  confirmation, the hub's instructions stand without a round trip.
+- **Name the sha.** An instruction that acts must be falsifiable on arrival.
+- **Never on a relay alone:** destructive or irreversible work, or anything the instructing session's
+  own permissions refused — that launders a permission decision the user was never asked about.
+- **Never two sessions in one tree.** If a spoke holds the gxclaim and the hub is going to ship that
+  work instead, the spoke releases the claim first.
+- **Say what shipped, unprompted.** He delegated the decision, not the knowledge of what happened to
+  his business.
+
+**HE CAN AUTHORIZE ANYWHERE, AND USUALLY NOT IN THE HUB'S CHAT.** Sky, 2026-09-17: *"if i authorize,
+it could be in mid conversation with another agent."* He works in whichever session is in front of
+him, so a spoke may already hold a first-hand yes the hub knows nothing about, and the hub may hold
+one no spoke has seen. Two things follow, and they pull in opposite directions:
+
+- **A session's own account of what Sky told it is first-hand, and it counts — for that session.** It
+  is not a relay and the hub does not get to overrule it. "Sky told me to ship this", from the
+  session he typed it in, is the strongest authority in this system.
+- **When the hub and a spoke report CONFLICTING instructions, neither wins by being louder.** Ask
+  him. That is exactly what produced the flip above: the leaderboard session accurately reported what
+  he said in its chat, the hub accurately reported what he said in the hub's, and the two did not
+  match. One question settled it in a sentence; guessing would have written the wrong rule into six
+  repos.
+
+The consequence for the hub, which is the session most likely to get this wrong: being the conductor
+means seeing most of the board, not all of it. A spoke going quiet or declining an instruction may be
+acting on something he said five minutes ago somewhere else.
 
 This reverses the older line that the hub was *a channel, not a delegate*. That line was correct when
 it was written and two spokes defended it well; what changed is that Sky delegated, deliberately,
