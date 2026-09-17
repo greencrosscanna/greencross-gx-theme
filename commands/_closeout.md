@@ -65,10 +65,27 @@ Re-listing the whole board is right, and it has a cost: the one item that moved 
 he has already read past, indistinguishable from them. The marker is what makes re-listing worth doing —
 it shows the delta without him diffing two lists by eye. Drop it once he has seen that list.
 
+**End each item with the model to run it on** (his ask, 2026-09-17): `— Sonnet 5`, `— Opus 5`,
+`— Haiku 4.5`. He picks a number and opens a chat, and the model is a decision he otherwise makes
+blind, before anyone has looked at the work — while you have just read the code and know whether it
+is a one-line toggle or a cross-app contract. Make the call; do not offer two.
+
+Rough calibration, and it is about the SHAPE of the task, not its importance:
+- **Haiku 4.5** — one obvious edit in one file. A default, a label, a flag, clearing a stray row.
+- **Sonnet 5** — ordinary build-and-verify work. A contained feature, a fix whose cause is already
+  known, a screen that needs writing but not designing.
+- **Opus 5** — diagnosis where the cause is unknown, anything touching a shared contract or the
+  IMMEDIATE tier, security and credential work, and anything where being subtly wrong is expensive
+  and would pass a test anyway.
+
+An item waiting on Sky carries no model: nothing runs until he answers, and a model name there
+implies work is queued when it is not.
+
 ```
-[6] Shared loading screen in the theme, and where it shows
+[5] Bug form blames your connection for every failure, hiding the real reason — Sonnet 5
+[6] Brain notes default to collapsed instead of expanded — Haiku 4.5
 [7] Audit Sales' and Crew's credential-leak checks — nobody has asked whether they find
-    every leak point or only the ones their author knew about -NEW
+    every leak point or only the ones their author knew about — Opus 5 -NEW
 ```
 
 If the fetch comes back empty — nothing in flight, nothing sequenced — say so plainly in one line rather
