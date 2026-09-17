@@ -113,10 +113,37 @@
       });
     } catch (e) {}
   }
+  /* ── A BREADCRUMB MUST NOT CARRY A CREDENTIAL ──────────────────────────────────────────────────
+   * Everything captured here is mailed to Sky in the unfiled-bug notice AND stored in GX Core's
+   * bug_reports tab, so it is written down twice and read later by people who are not thinking about
+   * secrets. Two of the three fields were raw until 2026-09-17.
+   *
+   * THE PATH, traced by the pricecards session: an app that puts its session token in the QUERY
+   * STRING (Price Cards' generator does, deliberately, with a comment accepting that it lands in
+   * browser history) can throw a load error whose `filename` IS that signed URL. `split('/').pop()`
+   * keeps everything after the last slash and was not length-capped, so the whole query string —
+   * token intact — was breadcrumbed verbatim. `location.href` had the same exposure.
+   *
+   * HOW BAD, stated honestly rather than talked up: mechanism traced, not reproduced. gx-client's own
+   * rejections name the ACTION and never the URL, and Chrome and Firefox say "Failed to fetch" with
+   * no URL at all. The realistic case is Safari on the shop iPads, which is wordier. That is a reason
+   * to fix it at the capture and not a reason to panic about what is already filed.
+   *
+   * FIXED HERE, NOT IN THE SPOKE THAT FOUND IT, because five apps share this reporter and a fix in
+   * one leaves four. Both-sides wildcard on the parameter name: `connector_secret=` has `secret=`
+   * preceded by an underscore, and an anchored regex requiring ?/& immediately before the word misses
+   * exactly the parameter worth catching — that is the bug Crew shipped and then fixed. Used with
+   * .replace() only: this is a /g regex and .test() would silently skip every second call. */
+  var SECRET_PARAM_RE = /([?&][A-Za-z0-9_.\-]*(?:secret|token|key|pass|password|auth|sig|session)[A-Za-z0-9_.\-]*=)[^&#\s"']*/gi;
+  function redact(s) {
+    try { return String(s == null ? '' : s).replace(SECRET_PARAM_RE, '$1<redacted>'); }
+    catch (e) { return ''; }
+  }
   function push(msg, file, line) {
     try {
-      var at = file ? (String(file).split('/').pop() + (line ? ':' + line : '')) : '';
-      recentErrors.push(String(msg).slice(0, 200) + (at ? ' @' + at : ''));
+      // Cap the location too. Uncapped was how a whole URL fitted in a field meant to hold "app.js:42".
+      var at = file ? (redact(file).split('/').pop().slice(0, 160) + (line ? ':' + line : '')) : '';
+      recentErrors.push(redact(msg).slice(0, 200) + (at ? ' @' + at : ''));
       while (recentErrors.length > MAX_ERRORS) recentErrors.shift();
     } catch (e) {}
   }
@@ -124,7 +151,8 @@
   /* The snapshot. Everything here is cheap and non-identifying beyond what the bug already carries. */
   function snapshot() {
     var o = {};
-    try { o.url = String(global.location.href).slice(0, 300); } catch (e) {}
+    // Redact BEFORE the slice: a token at character 280 would otherwise survive the cut intact.
+    try { o.url = redact(global.location.href).slice(0, 300); } catch (e) {}
     /* Omit a zero dimension rather than filing "0x0". A backgrounded or not-yet-laid-out window
        reports 0, and "viewport: 0x0" in a bug report is not a small inaccuracy — it is a fact that
        looks measured, and someone will try to explain a layout bug with it. Observed live in the
