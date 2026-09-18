@@ -39,8 +39,12 @@ esac
 # Locate the repo the edited file belongs to, not the shell's cwd — an agent may be anywhere.
 dir="$(CDPATH= cd -- "$(dirname -- "$file")" 2>/dev/null && pwd)" || exit 0
 repo=""
+# `-e`, not `-d`: in a linked worktree `.git` is a FILE. With `-d` an edit inside
+# greencross-command-center/.claude/worktrees/<name> walked past its own worktree and ran the MAIN
+# checkout's suites — testing code the session had not written, and on 2026-09-17 running an old hub
+# test that locked every spoke as a side effect. Measured, not assumed: this session's own edit did it.
 while [ -n "$dir" ] && [ "$dir" != "/" ]; do
-  if [ -d "$dir/.git" ]; then repo="$dir"; break; fi
+  if [ -e "$dir/.git" ]; then repo="$dir"; break; fi
   dir="$(dirname "$dir")"
 done
 [ -n "$repo" ] || exit 0
