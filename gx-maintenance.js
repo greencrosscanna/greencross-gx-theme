@@ -225,8 +225,21 @@
     });
   }
 
+  /* ONLY THE FIRST ASK rides the page's shared boot call (GXClient.bootPart in gx-client.js). Every
+     later one — the 20s poll while gated, a refocus — goes to ?action=config directly, because that
+     route's cache is cleared the instant the cockpit flips a switch, and a memo from page load is not.
+     A skip (GX Core predates `bootstrap`, or the config part failed) falls through to the route. */
+  var bootAsked = false;
+  function configCall() {
+    var own = function () { return global.GXClient(cfg.gxcore).jsonp('config', {}); };
+    if (bootAsked || typeof global.GXClient.bootPart !== 'function') return own();
+    bootAsked = true;
+    return global.GXClient.bootPart(cfg.gxcore, 'config', { app: cfg.app })
+      .catch(function (e) { if (e && e.gxBootSkip) return own(); throw e; });
+  }
+
   function coreConfig() {
-    return global.GXClient(cfg.gxcore).jsonp('config', {})
+    return configCall()
       .then(function (d) {
         var c = (d && d.ok && d.config) || null;
         if (!c) return null;

@@ -115,8 +115,16 @@
          retry is another connection and another GX Core job rather than a replacement; Crew measured
          ?action=stores requested 4 times in one page load. With NO cache, someone is looking at a
          store list that is not there yet, and the default retries stay. */
-      var r = await global.GXClient(gxcoreExecUrl).jsonp('stores', {},
-                                                         cached ? { retries: 0, timeoutMs: 45000 } : undefined);
+      /* THE PAGE'S SHARED BOOT CALL FIRST (GXClient.bootPart, gx-client.js): one request answers the
+         store list, the maintenance switch and the changelog together. A skip — GX Core too old for
+         it, or the part failed — falls through to this file's own route, exactly as before. */
+      var own = function () {
+        return global.GXClient(gxcoreExecUrl).jsonp('stores', {},
+                                                    cached ? { retries: 0, timeoutMs: 45000 } : undefined);
+      };
+      var r = (typeof global.GXClient.bootPart === 'function')
+        ? await global.GXClient.bootPart(gxcoreExecUrl, 'stores').catch(function (e) { if (e && e.gxBootSkip) return own(); throw e; })
+        : await own();
       if (r && r.ok && r.stores && r.stores.length) {
         rows = r.stores; index(); paintVars(); writeCache(rows);
         cachedAt = null;   // served from the network this load, so there is no cache age to report

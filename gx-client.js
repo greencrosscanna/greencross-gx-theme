@@ -258,7 +258,8 @@
        is a hot browser path, and a hedge list is the wrong place to win an argument with a safety
        gate. Adding a name here means that test must pass for it in every engine that answers it. */
     var HEDGE_READS = defaults.hedgeReads || {
-      health: 1, config: 1, stores: 1, apps: 1, version_history: 1, published_goals: 1, grants: 1
+      health: 1, config: 1, stores: 1, apps: 1, version_history: 1, published_goals: 1, grants: 1,
+      bootstrap: 1   // stores + config + version_history in one response; each part is one of the above
     };
 
     /* defaults.app beats the script tag, so a page holding TWO clients — its own engine and GX Core —
@@ -658,6 +659,70 @@
     // `app` is exposed so a page can assert what it is reporting as, rather than reading a URL back.
     return { jsonp: jsonp, getJSON: getJSON, postJSON: postJSON, buildUrl: buildUrl, base: baseUrl, app: APP, _congested: congested };
   }
+
+  /* ─── ONE BOOT CALL PER PAGE LOAD — GXClient.bootPart(baseUrl, part, {app}) ──────────────────
+   *
+   * Four shared files each asked GX Core a rarely-changing question at boot, as its own round trip:
+   * gx-stores.js (stores), gx-maintenance.js (config), and gx-changelog.js AND gx-updatecheck.js
+   * (version_history — the same answer, twice). GX Core runs each in under a second; a browser waits
+   * ~7.3s per call on the /exec transport (measured 2026-09-17). So the lever is fewer calls.
+   * ?action=bootstrap answers all three from the same server caches their own routes use, and this
+   * shares that ONE request between every file on the page.
+   *
+   * THE CONTRACT A CONSUMER RELIES ON:
+   *   · resolves the part's payload, EXACTLY the shape its own route returns;
+   *   · rejects with err.gxBootSkip === true when the boot call cannot answer this part — GX Core too
+   *     old to know `bootstrap`, the part failed server-side, the memo is past BOOT_MAX_AGE_MS, or it
+   *     was fetched for a different app. The consumer then calls its OWN route, exactly as before
+   *     this existed. That is what makes it safe to ship this file ahead of the GX Core deploy;
+   *   · rejects WITHOUT gxBootSkip when the transport itself failed after the normal retries. The
+   *     consumer treats that as its own call failing — falling back would double the wait on a
+   *     GX Core that is not answering, which is strictly worse than before.
+   *
+   * ONE PER PAGE LOAD, NOT A CACHE. The memo is fresh for BOOT_MAX_AGE_MS (60s, the config route's
+   * own server TTL) and then refuses, so a poller that comes back later — the maintenance gate while
+   * a store is dark, the update check on refocus — always goes to its own route and sees a change.
+   * Consumers only ask on their FIRST call anyway; the age cap is the backstop.
+   *
+   * THE APP IS COLLECTED FOR ONE TICK before the request is sent, because gx-stores.js knows no app
+   * and the version_history part needs one. Boot scripts run back to back, so a zero-delay defer lets
+   * the next init() name it. Falls back to this script tag's data-app. A version_history asked for a
+   * different app than the memo was fetched for is a skip, never another app's changelog. */
+  var BOOT_MAX_AGE_MS = 60000;
+  var BOOT_PARTS = { stores: 1, config: 1, version_history: 1 };
+  var _boot = Object.create(null);   // baseUrl -> { app, at, promise }
+
+  function bootSkip(why) { var e = new Error('bootstrap skipped: ' + why); e.gxBootSkip = true; return e; }
+
+  function bootPart(baseUrl, part, opts) {
+    opts = opts || {};
+    var want = String(opts.app || '').trim().toLowerCase();
+    if (!baseUrl || !BOOT_PARTS[part]) return Promise.reject(bootSkip('not a boot part: ' + part));
+    var m = _boot[baseUrl];
+    if (m && Date.now() - m.at > BOOT_MAX_AGE_MS) return Promise.reject(bootSkip('stale'));
+    if (!m) {
+      m = _boot[baseUrl] = { app: want || _tagApp, at: Date.now(), promise: null };
+      m.promise = new Promise(function (r) { setTimeout(r, 0); }).then(function () {
+        /* A shared-layer read, declared by the shared layer. Without this, gx-dev.js on localhost
+           throws on an action no app has listed yet and every consumer quietly falls back — which
+           would be correct, but would mean the boot call is never exercised in development. */
+        try { if (global.GXDev && typeof global.GXDev.declareReads === 'function') global.GXDev.declareReads(['bootstrap']); } catch (e) {}
+        return GXClient(baseUrl).jsonp('bootstrap', m.app ? { app: m.app } : {});
+      });
+    } else if (!m.app && want) {
+      m.app = want;   // still inside the collection tick: the request has not been built yet
+    }
+    return m.promise.then(function (resp) {
+      if (!resp || resp.ok !== true || !(part in resp)) throw bootSkip('route not available');
+      if (part === 'version_history' && want && want !== m.app) throw bootSkip('fetched for ' + (m.app || 'no app'));
+      var slot = resp[part];
+      if (!slot || slot.ok !== true) throw bootSkip(part + ' part failed' + (slot && slot.error ? ': ' + slot.error : ''));
+      return slot;
+    });
+  }
+
+  GXClient.bootPart = bootPart;
+  GXClient._bootReset = function () { _boot = Object.create(null); };   // tests only
 
   global.GXClient = GXClient;
   if (typeof module !== 'undefined' && module.exports) module.exports = GXClient;
