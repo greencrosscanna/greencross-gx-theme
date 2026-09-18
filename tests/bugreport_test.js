@@ -229,7 +229,8 @@ console.log('\n5. a failed send is never reported as success');
   click(doc, 'gxBugSubmit');
   await tick(); await tick();
   ok(doc.getElementById('gxBugSuccess').hidden === true, '{ok:false} does NOT show the success panel');
-  ok(/could not send/i.test(doc.getElementById('gxBugStatus').textContent), 'it shows an error');
+  ok(doc.getElementById('gxBugStatus').textContent === 'title or detail required',
+     "it shows the server's own reason, not a blanket connection error — see 5b below");
   ok(doc.getElementById('gxBugSubmit').disabled === false, 'and re-enables Submit so it can be retried');
 }
 for (const [label, answer] of [['a bare {}', {}], ['undefined', undefined], ['{ok:"yes"}', { ok: 'yes' }]]) {
@@ -278,6 +279,58 @@ for (const [label, answer] of [['a bare {}', {}], ['undefined', undefined], ['{o
   await tick();
   ok(/not configured/i.test(doc.getElementById('gxBugStatus').textContent),
      'an app that forgot to wire submit says so instead of silently doing nothing');
+}
+
+console.log('\n5b. the SERVER\'s own reason is shown, not a blanket connection error');
+/* On 2026-09-16 GX Core answered a filing with {ok:false, error:'app required'} and the modal told
+   Sky to check his wifi — wrong on its face, and he filed the same report twice because of it. The
+   two failures must read differently: a server that answered with a reason shows that reason; a
+   transport that never got an answer keeps the generic wording, because there is nothing else true
+   to say. */
+{
+  const { GXB, doc } = load();
+  GXB.init({ app: 'inventory', submit: () => ({ ok: false, error: 'app required' }) });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'x';
+  click(doc, 'gxBugSubmit');
+  await tick(); await tick();
+  ok(doc.getElementById('gxBugStatus').textContent === 'app required',
+     "the server's actual reason reaches the screen, not the connection message");
+}
+{
+  // The server answered but gave no reason — there is nothing true to show but the generic wording.
+  const { GXB, doc } = load();
+  GXB.init({ app: 'inventory', submit: () => ({ ok: false }) });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'x';
+  click(doc, 'gxBugSubmit');
+  await tick(); await tick();
+  ok(/could not send/i.test(doc.getElementById('gxBugStatus').textContent),
+     'no res.error means no server reason to show — falls back to the connection wording');
+}
+{
+  // No answer came back at all (a rejected promise) — this is a TRANSPORT failure, not a server one,
+  // and must keep the connection wording even though the rejection carries a message of its own.
+  const { GXB, doc } = load();
+  GXB.init({ app: 'inventory', submit: () => Promise.reject(new Error('fetch failed')) });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'x';
+  click(doc, 'gxBugSubmit');
+  await tick(); await tick();
+  ok(doc.getElementById('gxBugStatus').textContent === 'Could not send — check your connection and try again.',
+     'a transport failure with no server answer still shows the connection wording, not the rejection message');
+}
+{
+  // The reason itself must be capped — a stack trace is not a reason, and this field renders on screen.
+  const { GXB, doc } = load();
+  const long = 'x'.repeat(500);
+  GXB.init({ app: 'inventory', submit: () => ({ ok: false, error: long }) });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'x';
+  click(doc, 'gxBugSubmit');
+  await tick(); await tick();
+  ok(doc.getElementById('gxBugStatus').textContent.length <= 200,
+     'a long server reason is capped rather than dumped onto the screen whole');
 }
 
 

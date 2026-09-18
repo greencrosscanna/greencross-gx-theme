@@ -166,7 +166,58 @@ async function fileReport(ctx) {
     }
   }
 
-  // ── 5. the control: the pre-fix capture must leak ─────────────────────────────────
+  // ── 5. the server's own failure reason must be redacted too ─────────────────────────────────────
+  // A GX Core exception can carry the deploy secret inside a URL, and it reaches the screen through
+  // this exact path: res.error is shown verbatim to whoever is filing the report, and people
+  // screenshot this modal INTO bug reports — so an unredacted server message is a leak into the bug
+  // board itself, not just into a log nobody reads.
+  {
+    const ctx = arm(load('https://greencrosscanna.github.io/greencross-price-cards/'));
+    ctx.GXB.init({
+      app: 'pricecards',
+      submit: () => Promise.resolve({
+        ok: false,
+        error: 'GXCore exception at https://script.google.com/macros/s/A/exec?action=x&deploy_secret=' + TOKEN,
+      }),
+    });
+    ctx.GXB.open();
+    ctx.doc.getElementById('gxBugTitle').value = 'x';
+    const btn = ctx.doc.getElementById('gxBugSubmit');
+    (btn._listeners.click || []).forEach(fn => fn({ target: btn }));
+    await tick(); await tick(); await tick();
+    const shown = ctx.doc.getElementById('gxBugStatus').textContent;
+    ok(shown.indexOf(TOKEN) === -1, "the server's own error message is redacted before it reaches the screen");
+    ok(/redacted/.test(shown), 'redacted in place, not silently dropped');
+  }
+  // ── 5b. the control: removing redact() from the throw must make this fail ───────────────────────
+  // A fixture that could not show the defect proves nothing — this rebuilds the throw path without
+  // its redact() call and confirms THAT leaks, so the assertion above is known to be load-bearing.
+  {
+    const preFix = SRC.replace(
+      "var err = new Error(svrMsg\n            ? redact(String(svrMsg)).slice(0, 200)",
+      "var err = new Error(svrMsg\n            ? String(svrMsg).slice(0, 200)"
+    );
+    ok(preFix !== SRC, 'the control could be built (the throw is still where this test expects it)');
+
+    const old = load('https://greencrosscanna.github.io/greencross-price-cards/', preFix);
+    old.GXB.init({
+      app: 'pricecards',
+      submit: () => Promise.resolve({
+        ok: false,
+        error: 'GXCore exception at https://script.google.com/macros/s/A/exec?action=x&deploy_secret=' + TOKEN,
+      }),
+    });
+    old.GXB.open();
+    old.doc.getElementById('gxBugTitle').value = 'x';
+    const btnOld = old.doc.getElementById('gxBugSubmit');
+    (btnOld._listeners.click || []).forEach(fn => fn({ target: btnOld }));
+    await tick(); await tick(); await tick();
+    const shownOld = old.doc.getElementById('gxBugStatus').textContent;
+    ok(shownOld.indexOf(TOKEN) !== -1,
+       'the PRE-FIX throw DOES leak the token onto the screen — this test can see the bug it exists for');
+  }
+
+  // ── 6. the control: the pre-fix capture must leak ─────────────────────────────────
   // Without this the file would pass just as happily against the bug it exists for. The pre-fix text
   // is built by substituting the two redact() calls back out of the real source and running THAT
   // through the same harness — so a future edit that moves the capture fails here loudly rather than

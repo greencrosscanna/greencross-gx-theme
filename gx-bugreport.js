@@ -490,7 +490,26 @@
            2026-09-10 while hunting three lost reports (not their cause, but a live gap). Every app's
            backend returns an explicit {ok:true} on a filing, checked in all six before this changed. */
         if (!res || res.ok !== true) {
-          throw new Error((res && res.error) || 'No confirmation came back, so the report may not have been filed');
+          /* Two different failures land here and they read very differently to the person filing:
+           * the SERVER answered and said why (res.error is set) — show that reason, redacted and
+           * capped, because it is a real diagnosis ("app required" beats "check your wifi"); or the
+           * TRANSPORT never got an answer at all (network, timeout, a bad response shape) — keep the
+           * generic connection wording, because there is no server reason to show.
+           *
+           * gxShow marks the SERVER case specifically, set here at the throw rather than guessed from
+           * the message text in the catch below — guessing from text is exactly how a real answer and
+           * a placeholder string would get confused again.
+           *
+           * res.error can itself carry anything the backend put in an exception message, including a
+           * URL with a token in it (that is the whole story two sections up in this file), and this
+           * message is shown on screen and typed into bug_reports — a thing people screenshot. Redact
+           * and cap it exactly like every other user-facing string in this file. */
+          var svrMsg = res && res.error;
+          var err = new Error(svrMsg
+            ? redact(String(svrMsg)).slice(0, 200)
+            : 'No confirmation came back, so the report may not have been filed');
+          if (svrMsg) err.gxShow = true;
+          throw err;
         }
         doc.getElementById('gxBugBody').hidden = true;
         var ok = doc.getElementById('gxBugSuccess');
