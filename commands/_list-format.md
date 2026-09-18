@@ -21,6 +21,14 @@ Re-listing the whole board is right, and it has a cost: the one item that moved 
 he has already read past, indistinguishable from them. The marker is what makes re-listing worth doing —
 it shows the delta without him diffing two lists by eye. Drop it once he has seen that list.
 
+**Group future-version work under its own "Future development" heading, below the current work**
+(his ask, 2026-09-17: *"group tasks that are future versions together, ie v2.0 Task, should be
+grouped as future development, not part of the current immediate tasks"*). A to-do titled with a
+version tag it hasn't reached yet — `v2`, `v2.0`, `v3`, etc. — is not something to do now; mixed
+into the current list it reads as equally urgent, and it isn't. **It keeps its `[N]`** in the same
+running list — this groups the readout, it doesn't renumber it — so he can still pick it by
+number.
+
 **End each item with the model to run it on** (his ask, 2026-09-17): `— Sonnet 5`, `— Opus 5`,
 `— Haiku 4.5`. He picks a number and opens a chat, and the model is a decision he otherwise makes
 blind, before anyone has looked at the work — while you have just read the code and know whether it
@@ -63,4 +71,7 @@ switch models before it starts working"*, and then, when a chat picked a number 
 [6] Brain notes default to collapsed instead of expanded — Haiku 4.5
 [7] Audit Sales' and Crew's credential-leak checks — nobody has asked whether they find
     every leak point or only the ones their author knew about — Opus 5 -NEW
+
+Future development:
+[8] v2.0 AVATAR: upgrades as perks for certain goals — Sonnet 5
 ```

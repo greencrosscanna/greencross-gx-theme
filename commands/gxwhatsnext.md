@@ -145,6 +145,11 @@ sequence, kept fresh in the CC.
 
      If `buildOrder` is empty (no digest yet, nothing dispatched, and none of this app's items are
      sequenced), fall back to the app's open **`backlog`** (Asana order) and say so.
+
+     **A title tagged with a version it hasn't reached yet (`v2`, `v2.0`, `v3`, …) is future
+     development, not current work** — see the shared rule above (`_list-format.md`). Pull these out
+     of `buildOrder`/`backlog` and list them together under a **"Future development"** heading below
+     everything else in step 4, still numbered in the same running sequence.
    - **Filed since the digest ran** (`backlog` rows with `since_digest: true`, counted by `unsequenced`) —
      **surface these ABOVE the rest of the backlog and number them like anything else.**
 
