@@ -45,7 +45,10 @@ model**: the session starts on the default and begins at once. So:
    you. Reply with one word — ready — and wait."* What the task is goes in the chip's `title` and
    `tldr`, which Sky sees and the session does not.
 2. When he clicks it you are notified. **Set its model** (`set_session_model`).
-3. **Then** `SendMessage` it the full task.
+3. **Then** `SendMessage` it the full task, and tell Sky in one line to approve it there. A chip
+   session runs in a different permission mode, so the task arrives as an **approval card in the new
+   session** rather than a delivered message. A `[Cross-session delivery notice]` saying held or
+   expired means it did NOT arrive — resend and say so; a silent session is not a working one.
 
 **Withhold the task; do not merely ask it to wait.** Asking does not hold. The first version of this
 rule put *"STOP BEFORE YOU START … reply with one line, then do nothing"* at the top of the chip,

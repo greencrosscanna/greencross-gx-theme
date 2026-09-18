@@ -183,7 +183,10 @@ sequence, kept fresh in the CC.
       the chip's `title` and `tldr`, which Sky sees; the session does not.
    2. When Sky clicks it, you are notified it started. **Set its model** (`set_session_model`) to the
       one on the list line.
-   3. **Then** `SendMessage` it the full task: what to build, the `task_gid`, the repo's rules below.
+   3. **Then** `SendMessage` it the full task: what to build, the `task_gid`, the repo's rules below —
+      and tell Sky in one line to approve it in the new session. A chip session runs in a different
+      permission mode, so the task lands there as an approval card, not a delivered message. A
+      `[Cross-session delivery notice]` saying held or expired means it never arrived: resend it.
 
    **Why the task is withheld rather than the session asked to wait:** asking does not hold. On
    2026-09-17 a chip prompt opened with *"STOP BEFORE YOU START … reply with one line, then do
