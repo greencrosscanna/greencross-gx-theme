@@ -427,6 +427,14 @@
       appVer:   call(cfg.version, ''),
       context:  JSON.stringify(snapshot()),
     };
+    /* THE APP KEY RIDES IN THE PAYLOAD. init() took `app` and nothing read it, so a page with no
+       backend of its own — Master Control, which hands this payload straight to Core's reportBug,
+       where `payload.app` is the ONLY source of the key — filed nothing, ever, while passing the key
+       and reasonably believing it was used. Spokes are unaffected: their backend passes its own key
+       to gxIngestBug as a separate argument and none of them reads `app` off the request. Omitted
+       when unset rather than sent blank, so Core's refusal still names the real cause. */
+    var appKey = String(call(cfg.app, '') || '').trim();
+    if (appKey) payload.app = appKey;
 
     var shotFailed = '';                    // set when the image failed; the report still goes
 

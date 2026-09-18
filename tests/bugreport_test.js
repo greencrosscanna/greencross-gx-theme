@@ -207,6 +207,32 @@ console.log('\n4. the payload carries what GX Core reads');
   ok(typeof sent.context === 'string' && JSON.parse(sent.context).tab === 'orders',
      'context is a JSON STRING (it has to survive a query string)');
 }
+console.log('\n4b. the app key passed to init() reaches the payload');
+/* init({app}) was accepted and never read, so the payload had no app. Every spoke hid it — their
+   backend supplies the key to gxIngestBug as its own argument — but Master Control hands this payload
+   straight to Core's reportBug, where payload.app is the only source of the key, and it filed nothing
+   for as long as it used this form. The hub test (cc_bugform_app_key_test.js) only proves the HUB
+   patched its own page; this is the shared module's side. */
+{
+  const { GXB, doc } = load();
+  let sent = null;
+  GXB.init({ app: 'core-admin', submit: p => { sent = p; return { ok: true }; } });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'x';
+  click(doc, 'gxBugSubmit');
+  await tick();
+  ok(sent && sent.app === 'core-admin', "init({app:'core-admin'}) puts app:'core-admin' in the payload");
+}
+{
+  const { GXB, doc } = load();
+  let sent = null;
+  GXB.init({ submit: p => { sent = p; return { ok: true }; } });
+  GXB.open();
+  doc.getElementById('gxBugTitle').value = 'x';
+  click(doc, 'gxBugSubmit');
+  await tick();
+  ok(sent && !('app' in sent), 'no app given → no app key invented (Core then refuses with "app required", the true reason)');
+}
 {
   const { GXB, doc } = load();
   let called = false;
