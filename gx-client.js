@@ -577,7 +577,7 @@
     //
     // A REFUSAL IS NOT A MISS. An auth refusal is well-formed JSON, so it resolves on the first
     // attempt and never retries — no retry storm on a signed-out device. Only a transport miss
-    // (non-JSON body, or fetch throwing) retries.
+    // (non-JSON body, or fetch throwing) retries. A TIMEOUT does not: see the catch below.
     //
     // text/plain;charset=utf-8 is deliberate: it keeps the request "simple" so the browser skips the
     // CORS preflight, which /exec cannot answer. Apps Script reads the body from e.postData.contents
@@ -639,9 +639,17 @@
           if (text && (text.charAt(0) === '{' || text.charAt(0) === '[')) return JSON.parse(text);
           lastErr = new Error('non-JSON body (HTTP ' + res.status + ') — Drive HTML page');
         } catch (e) {
-          lastErr = (e && e.name === 'AbortError')
-            ? new Error('post timed out after ' + postTimeoutMs + 'ms')
-            : e;
+          /* A TIMEOUT IS NEVER RE-SENT, even when the caller opted into retries. A request that
+             ran out the clock was delivered and is still in flight; aborting drops our end, not
+             Apps Script's, so a slow-but-successful save would land twice. The caller gets
+             `timedOut: true` and decides what to tell the person — "may have gone through". */
+          if (e && e.name === 'AbortError') {
+            var te = new Error('GX postJSON "' + action + '" timed out after ' + postTimeoutMs +
+              'ms on attempt ' + (a + 1) + ' — it may still have gone through, so it was not re-sent');
+            te.timedOut = true;
+            throw te;
+          }
+          lastErr = e;
         } finally { if (killer) clearTimeout(killer); }
       }
       throw new Error('GX postJSON "' + action + '" failed after ' + (retries + 1) + ' tr' + (retries ? 'ies' : 'y') + ': ' + (lastErr && lastErr.message));

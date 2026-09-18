@@ -176,6 +176,38 @@ async function run() {
     delete global.GXDev;
   }
 
+  /* ══ §7 A TIMED-OUT WRITE IS NEVER RE-SENT, even when retries are opted into ════════════════════
+     The deadline aborts OUR end only; Apps Script keeps running the write. Re-sending it turns one
+     slow save into two — the bug-report upload (retries:2) and the avatar save (retries:3) both did. */
+  {
+    let started = 0;
+    global.fetch = (url, init) => new Promise((_res, rej) => {
+      started++;
+      init.signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    });
+    let threw = null;
+    try { await client({ postTimeoutMs: 20 }).postJSON('bug_shot', {}, { retries: 2 }); }
+    catch (e) { threw = e; }
+    ok(started === 1, '§7 retries:2 + a timeout → ONE attempt, not three (got ' + started + ')');
+    ok(threw && threw.timedOut === true, '§7 the rejection carries timedOut:true for the caller to branch on');
+    ok(threw && /may still have gone through/.test(threw.message), '§7 the message says the write may have landed');
+
+    // The other half: a timeout on a LATER attempt also stops the ladder.
+    let n2 = 0;
+    global.fetch = (url, init) => new Promise((res, rej) => {
+      n2++;
+      if (n2 === 1) return res({ status: 200, text: async () => DRIVE_HTML });
+      init.signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    });
+    try { await client({ postTimeoutMs: 20 }).postJSON('saveConfig', {}, { retries: 4 }); } catch (e) {}
+    ok(n2 === 2, '§7 a miss then a timeout → stops at 2, does not grind through all 5 (got ' + n2 + ')');
+
+    // And a real error is still retried — this is not "retries off".
+    const c3 = stubFetch(() => { throw new TypeError('Failed to fetch'); });
+    try { await client().postJSON('saveConfig', {}, { retries: 2 }); } catch (e) {}
+    ok(c3.length === 3, '§7 a network error IS still retried (3 attempts for retries:2)');
+  }
+
   console.log('\n  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 }
