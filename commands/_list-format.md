@@ -37,17 +37,23 @@ Rough calibration, and it is about the SHAPE of the task, not its importance:
 An item waiting on Sky carries no model: nothing runs until he answers, and a model name there
 implies work is queued when it is not.
 
-**If you hand an item to a new session, tell it to acknowledge and STOP.** A task chip (`spawn_task`)
-opens the item in its own session on one click, and that is worth doing — the task text travels, so
-the new chat does not open by asking Sky what he meant. But **the chip carries no model**: the new
-session starts on the default and begins working at once. So end every chip prompt with an explicit
-instruction to acknowledge the task in one line, start nothing, and wait. The spawning session then
-sets the model (`set_session_model`) and messages it to begin.
+**When Sky names a number, it opens in a NEW session on its model — and the chip carries no task.**
+A task chip (`spawn_task`) opens an item in its own session on one click. But **a chip carries no
+model**: the session starts on the default and begins at once. So:
 
-Skipping that line costs an interrupt mid-turn — which is how this rule was found on 2026-09-17: the
-first chip launched, started on the wrong model, and had to be stopped, re-modeled and restarted
-while it was already reading the repo. Sky's words: *"have it just acknowledge the task, then switch
-models before it starts working."*
+1. The chip's **prompt holds no task** — only *"You will receive a task from the session that opened
+   you. Reply with one word — ready — and wait."* What the task is goes in the chip's `title` and
+   `tldr`, which Sky sees and the session does not.
+2. When he clicks it you are notified. **Set its model** (`set_session_model`).
+3. **Then** `SendMessage` it the full task.
+
+**Withhold the task; do not merely ask it to wait.** Asking does not hold. The first version of this
+rule put *"STOP BEFORE YOU START … reply with one line, then do nothing"* at the top of the chip,
+followed by the task — and on 2026-09-17 a session read the task and did all of it, 530 messages
+including an attempt to push past the safety gate, before any model was set. A session cannot start
+work it has not been given. Sky's words that set this up: *"have it just acknowledge the task, then
+switch models before it starts working"*, and then, when a chat picked a number and started in place:
+*"when i tell it which number to proceed with it didn't open a new session."*
 
 ```
 [5] Bug form blames your connection for every failure, hiding the real reason — Sonnet 5

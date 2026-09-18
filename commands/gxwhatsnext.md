@@ -173,7 +173,26 @@ sequence, kept fresh in the CC.
      every call; the digest only orders `buildOrder`. So the honest sentence is "the ordering is from
      <date>", never "the board may be out of date" — and anything filed since then is already flagged
      by `since_digest` rather than hidden by the age of the digest.
-5. **Offer to start the top item right here.** If Sky says go:
+5. **When Sky names a number, open it in a NEW session on its model — not in this chat.** (Sky,
+   2026-09-17: *"when i tell it which number to proceed with it didn't open a new session."* This step
+   used to say "start the top item right here", and every session did exactly that.)
+
+   **Hand-off, in this order — and the order is the whole point:**
+   1. `spawn_task` with a chip whose **prompt carries NO task**: only *"You will receive a task from
+      the session that opened you. Reply with one word — ready — and wait."* Put what the task IS in
+      the chip's `title` and `tldr`, which Sky sees; the session does not.
+   2. When Sky clicks it, you are notified it started. **Set its model** (`set_session_model`) to the
+      one on the list line.
+   3. **Then** `SendMessage` it the full task: what to build, the `task_gid`, the repo's rules below.
+
+   **Why the task is withheld rather than the session asked to wait:** asking does not hold. On
+   2026-09-17 a chip prompt opened with *"STOP BEFORE YOU START … reply with one line, then do
+   nothing"*, followed by the task. The session read the task and did all of it — 530 messages,
+   including an attempt to push past the safety gate — before anyone set a model. A session cannot
+   start work it has not been given. Withholding makes early start impossible; asking only makes it
+   discouraged.
+
+   **What the new session then does** — send it these as part of the task:
    - **Rename this chat to the task, immediately** — do this first, before any other tool call, so the session
      is identifiable in the session list from the moment work starts. Call `set_session_title` with
      `session_id: "self"` and a **short** title derived from the selected item: 3–6 words, ~40 chars max,

@@ -46,8 +46,8 @@ curl -sL --http1.1 -G "<GXCORE>" --data-urlencode action=whats_next \
 Present it the way `/gxwhatsnext` step 4 does — **in flight first, then the build order, every actionable
 item numbered `[1] [2] [3]…` in one continuous list**, one short line each, **named by its `title`, never
 its id**. No re-litigating priorities and no essay per item; he is picking, not reading a report. If Sky
-names a number, start it: rename this chat to it (`set_session_title`, `session_id: "self"`) and register
-it with `dev_start` exactly as `/gxwhatsnext` step 5 says.
+names a number, **open it in a new session on its model, exactly as `/gxwhatsnext` step 5 says** — a
+chip that carries no task, the model set once he clicks it, the task sent after. Not in this chat.
 
 **Write that list the way `_list-format.md` says** — every to-do carries an `[N]` including one you
 just discovered, additions are marked `-NEW`, each item ends with the model to run it on, and a task
