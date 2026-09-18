@@ -107,8 +107,18 @@
        downstream depends on it, and the user is staring at a "Loading…" modal the whole time.
        Measured against a dead endpoint the default spent ~35s there. One retry keeps the Drive-HTML
        404 protection that gx-client exists for (~6% of rapid /exec calls) without the long tail. */
-    pending = global.GXClient(cfg.core).jsonp('version_history', { app: cfg.app },
-                                              { timeoutMs: 6000, retries: 1 })
+    /* The page's shared boot call answers this at login, when gx-updatecheck.js is asking the same
+       question — the two used to fetch it separately. After the first minute (or on a skip: an older
+       GX Core, or the part failed) it is this file's own short-budget call, as before. */
+    var own = function () {
+      return global.GXClient(cfg.core).jsonp('version_history', { app: cfg.app },
+                                             { timeoutMs: 6000, retries: 1 });
+    };
+    var ask = (typeof global.GXClient.bootPart === 'function')
+      ? global.GXClient.bootPart(cfg.core, 'version_history', { app: cfg.app })
+          .catch(function (e) { if (e && e.gxBootSkip) return own(); throw e; })
+      : own();
+    pending = ask
       .then(function (resp) {
         var ok = resp && resp.ok;
         data = {

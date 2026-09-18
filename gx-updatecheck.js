@@ -35,6 +35,7 @@
   'use strict';
 
   var cfg = null, latest = null, checkedAt = 0, wired = false, reloadPending = false;
+  var bootAsked = false;   // the first check rides GXClient.bootPart; see check()
   var THROTTLE_MS = 5 * 60 * 1000;
   var FIRST_CHECK_MS = 4000;
   var RELOAD_RETRY_MS = 2 * 60 * 1000;   // a kiosk's wait before reloading for the same version again
@@ -219,8 +220,23 @@
        connection and a second GX Core job, not a replacement. Crew measured version_history requested
        4 times in one page load this way. A miss here costs nothing: the next check is on the next
        foreground, at most THROTTLE_MS later. */
-    global.GXClient(cfg.gxcore).jsonp('version_history', { app: cfg.app },
-                                      { retries: 0, timeoutMs: 45000 }).then(function (d) {
+    /* The FIRST check rides the page's shared boot call (GXClient.bootPart, gx-client.js) — it lands
+       4s after load, inside that call's one-minute window, and asks what gx-changelog.js already
+       asked. Every later check is this file's own route: its whole job is noticing a release that
+       shipped AFTER the page loaded, which a page-load memo cannot know. */
+    var own = function () {
+      return global.GXClient(cfg.gxcore).jsonp('version_history', { app: cfg.app },
+                                               { retries: 0, timeoutMs: 45000 });
+    };
+    var ask;
+    if (!bootAsked && typeof global.GXClient.bootPart === 'function') {
+      bootAsked = true;
+      ask = global.GXClient.bootPart(cfg.gxcore, 'version_history', { app: cfg.app })
+        .catch(function (e) { if (e && e.gxBootSkip) return own(); throw e; });
+    } else {
+      ask = own();
+    }
+    ask.then(function (d) {
       /* WHICH LIST: `releases` is the consolidated feed — only deploys that carry notes — and
          `history` is every deploy. A person gets the toast for a release worth reading about; a
          KIOSK moves onto every new build, notes or not, because nobody there reads them (Sky,
