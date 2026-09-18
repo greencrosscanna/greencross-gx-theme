@@ -23,7 +23,16 @@ let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) { pass++; console.log('  ✓ ' + msg); }
                             else { fail++; console.log('  ✗ FAIL ' + msg); } };
 
-const sh = (cmd, cwd) => execFileSync('sh', ['-c', cmd], { cwd, stdio: ['ignore','pipe','pipe'] }).toString();
+/* NEVER INHERIT A HOOK'S GIT_DIR. Pushed from a worktree, the pre-push hook exports an ABSOLUTE GIT_DIR
+   and every child gets it — so the `git init .` below would not build the throwaway repo it stands in,
+   it would reinitialize the REAL one. On 2026-09-17 a push from a task-chip worktree left this repo
+   core.bare=true, which stopped git working in the main checkout at all. The runner strips it now too,
+   but a suite can be run by other hooks, so it defends itself. tests/hook_env_isolation_test.js pins it. */
+const CLEAN_ENV = Object.assign({}, process.env);
+for (const k of Object.keys(CLEAN_ENV)) {
+  if (/^GIT_(DIR|WORK_TREE|INDEX_FILE|PREFIX|COMMON_DIR|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE)$/.test(k)) delete CLEAN_ENV[k];
+}
+const sh = (cmd, cwd) => execFileSync('sh', ['-c', cmd], { cwd, env: CLEAN_ENV, stdio: ['ignore','pipe','pipe'] }).toString();
 
 // ── lift the sweep out of the shipped script ────────────────────────────────────────────────────
 const script = fs.readFileSync(path.join(__dirname, '..', 'gx-preflight.sh'), 'utf8');

@@ -8,6 +8,23 @@
 # Bake changes locally first:  python3 -m http.server 8790  ->  http://localhost:8790/preview.html
 set -eu
 cd "$(dirname "$0")"
+
+# ── A HOOK HANDS ITS CHILDREN THE REAL REPO — so strip that before any test runs ─────────────────
+# Pushed from a git WORKTREE, git exports an ABSOLUTE GIT_DIR to this hook, and every child inherits
+# it. A test that builds a throwaway repo with `git init .` then `git config user.email t@t.t` does not
+# touch its temp dir under that env: its commands land in the repo GIT_DIR names. From the main
+# checkout GIT_DIR is RELATIVE (".git") and resolves harmlessly inside the temp dir, which is why this
+# only ever bites from a worktree — and why a clean run from the main checkout proves nothing.
+#
+# The hub hit this on 2026-09-10 and fixed it in its own run-tests.sh. It was never carried here, and
+# on 2026-09-17 a task-chip session (which always runs in a worktree) pushed gx-bugreport.js and left
+# THIS repo with core.bare=true — git refused to run in the main checkout at all — plus
+# user.email=t@t.t / user.name=tester, so every later commit here would have been signed "tester", and
+# a stray `wtbranch` + worktree from tests/gxclaim_worktree_test.js. All three repaired by hand the same
+# night. Discovery from the cwd is what this script wants; nothing below needs an inherited GIT_DIR.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY \
+      GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE 2>/dev/null || true
+
 FAIL=0
 
 # ── SELF-HEAL: sweep orphaned theme-preflight worktrees ──────────────────────────────────────────

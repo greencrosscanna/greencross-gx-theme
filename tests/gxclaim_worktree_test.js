@@ -32,11 +32,25 @@ let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) { pass++; console.log('  ✓ ' + msg); }
                             else { fail++; console.log('  ✗ FAIL ' + msg); } };
 
+/* NEVER INHERIT A HOOK'S GIT_DIR — this file is the one that did the damage. Pushed from a worktree, the
+   pre-push hook exports an ABSOLUTE GIT_DIR, and under it buildSuite()'s `git init .` +
+   `git config user.email t@t.t` + `git worktree add … -b wtbranch` do not build a throwaway repo: they
+   run against the REAL one. On 2026-09-17 a push from a task-chip worktree left this repo core.bare=true
+   (git refused to run in the main checkout), user.email=t@t.t / user.name=tester (every later commit
+   would have been signed "tester"), and a stray `wtbranch` plus a worktree in the system temp dir.
+   From the main checkout GIT_DIR is relative and resolves inside the temp dir, which is why this passed
+   every time it ran there. The runner strips it now too; the suite defends itself regardless, and
+   tests/hook_env_isolation_test.js fails if it stops. */
+const CLEAN_ENV = Object.assign({}, process.env);
+for (const k of Object.keys(CLEAN_ENV)) {
+  if (/^GIT_(DIR|WORK_TREE|INDEX_FILE|PREFIX|COMMON_DIR|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE)$/.test(k)) delete CLEAN_ENV[k];
+}
+
 // run a command; returns {code, out}. Never throws — a non-zero exit IS the assertion in most of this file.
 function run(cmd, cwd, env) {
   try {
     const out = execFileSync('sh', ['-c', cmd], {
-      cwd, env: Object.assign({}, process.env, env || {}), stdio: ['ignore', 'pipe', 'pipe'],
+      cwd, env: Object.assign({}, CLEAN_ENV, env || {}), stdio: ['ignore', 'pipe', 'pipe'],
     }).toString();
     return { code: 0, out };
   } catch (e) {

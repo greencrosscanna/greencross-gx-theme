@@ -46,6 +46,12 @@ done
 [ -n "$repo" ] || exit 0
 cd "$repo" || exit 0
 
+# Tests must never inherit a caller's GIT_DIR — a test building a throwaway repo would otherwise write
+# into the real one. Full reasoning in gx-preflight.sh, where the same strip sits; this hook runs the
+# same suites, so it needs the same defense.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY \
+      GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE 2>/dev/null || true
+
 ls tests/*_test.js >/dev/null 2>&1 || exit 0
 command -v node >/dev/null 2>&1 || exit 0
 
