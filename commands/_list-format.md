@@ -52,7 +52,13 @@ model**: the session starts on the default and begins at once. So:
 1. The chip's **prompt holds no task** — only *"You will receive a task from the session that opened
    you. Reply with one word — ready — and wait."* What the task is goes in the chip's `title` and
    `tldr`, which Sky sees and the session does not.
-2. When he clicks it you are notified. **Set its model** (`set_session_model`).
+2. **In the same response as `spawn_task`, arm the watcher** — `Bash` with `run_in_background`:
+   `bash ~/.claude/scripts/watch-new-session.sh`. It exits the moment a new session registers on this
+   machine (a new `/tmp/cc-socks/<pid>.sock`), which wakes you. *(The old "you are notified when he
+   clicks it" was not true in practice: the start notice only arrived attached to his NEXT message, so
+   twice on 2026-09-19 he had to type "opened".)* Then `ListAgents`, find the session by the chip's
+   title, and **set its model** (`set_session_model`). If `/tmp/cc-socks` ever stops existing, fall back
+   to asking him to say "opened".
 3. **Then** `SendMessage` it the full task, and tell Sky in one line to approve it there. A chip
    session runs in a different permission mode, so the task arrives as an **approval card in the new
    session** rather than a delivered message. A `[Cross-session delivery notice]` saying held or

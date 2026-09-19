@@ -186,8 +186,12 @@ sequence, kept fresh in the CC.
    1. `spawn_task` with a chip whose **prompt carries NO task**: only *"You will receive a task from
       the session that opened you. Reply with one word — ready — and wait."* Put what the task IS in
       the chip's `title` and `tldr`, which Sky sees; the session does not.
-   2. When Sky clicks it, you are notified it started. **Set its model** (`set_session_model`) to the
-      one on the list line.
+   2. **In the same response as `spawn_task`, arm the watcher** — `Bash` with `run_in_background`:
+      `bash ~/.claude/scripts/watch-new-session.sh`. It exits when a new session registers on this
+      machine, which wakes you (the old "you are notified when he clicks it" only arrived with his NEXT
+      message, so he had to type "opened"). Then `ListAgents`, find the session by the chip's title, and
+      **set its model** (`set_session_model`) to the one on the list line. If `/tmp/cc-socks` stops
+      existing, fall back to asking him to say "opened".
    3. **Then** `SendMessage` it the full task: what to build, the `task_gid`, the repo's rules below —
       and tell Sky in one line to approve it in the new session. A chip session runs in a different
       permission mode, so the task lands there as an approval card, not a delivered message. A
