@@ -15,14 +15,14 @@ I've said, then reflect the setup back in one line and wait for my go-ahead:
 1. **Which app or sub-app is this?** — Inventory · Price Cards · SPIFF · Sales/Cashflow ·
    Performance/Leaderboard · Command Center · or something new.
 2. **If it's a sub-app:** which parent does it live under, and does it hand data to another
-   app? (e.g., SPIFF lives under Inventory but feeds payout data to Performance.)
+   app? (e.g., SPIFF lives under Inventory and publishes payout progress to GX Core for Crew.)
 3. **Which data sheet does it read/write?** — its own app sheet or GX Core. Never GX2.
 4. **If it's the Command Center:** which phase are we on? (0 Foundation → 1 Inventory →
    2 Sales & Performance → 3 retire GX2 — one at a time.)
 5. **What are we trying to accomplish this session?**
 
-Then confirm it back in one line — e.g. *"Got it: SPIFF sub-app of Inventory (Tawny), writes
-payouts to GX Core for Performance to read, goal = X. Sound right?"* — before touching any code.
+Then confirm it back in one line — e.g. *"Got it: SPIFF sub-app of Inventory (Tawny), publishes
+payout progress to GX Core for Crew to read, goal = X. Sound right?"* — before touching any code.
 Keep it light: state what's obvious, only ask what you genuinely need. If I've clearly already
 told you all of this, just confirm and go.
 
@@ -104,11 +104,9 @@ list — no code change needed. Roles are enforced at the app login, not the dat
   columns — or a published payload's shape — without updating both sides in the same change. That one
   is covered by a test that runs the real consumer against the real producer's shape
   (`tests/cross_app_goals_contract_test.js` in the hub, wrapped into both spokes' push gates).
-  *Corrected 2026-08-22: this bullet used to cite "SPIFF writes `spiff_payouts`; Performance reads it."*
-  ***No such tab exists*** *— it is not in `GX_TABS`, nothing writes it, and nothing reads it. SPIFF
-  keeps payout data in its own sheet and its only GX Core calls are reads. A documented contract that
-  does not exist is worse than an undocumented one: it invites a session to "maintain" it, or to assume
-  pay data already flows and build on top of it.*
+  The second is SPIFF → Crew: SPIFF publishes per-program progress to `spiff_publications`
+  (`GXCore.publishSpiffProgress`) and Crew folds it into pay. There is **no `spiff_payouts` tab** (it does not exist) —
+  read `GX_TABS` before assuming a contract exists.
 
 ## Hard rules (learned the hard way — do not relearn them)
 - **Dates in sheets are stored as TEXT**, never Date objects (a sheet/script timezone mismatch

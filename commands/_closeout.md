@@ -4,15 +4,9 @@ Sessions usually resolve with that kind of language on their own; the explicit o
 actually get shipped and cleared from the Command Center. Shipping auto-completes the Asana to-do. Don't
 leave a finished task sitting `working`.
 
-**A GREEN LOCAL GATE IS NOT A GREEN BUILD — LOOK AT THE RUN.** (Found 2026-09-09.) Every push to
-`greencross-command-center` failed CI that day and nobody noticed, because the pre-push hook was
-green each time. The PR for the dev-session route was **merged red**. The two gates are different by
-design — the hooks are fast local feedback, CI is what makes them true — but nothing made anyone
-LOOK, and a local green reads as done.
-
-The failure was environment, not code: a test built a scratch repo and assumed the branch was called
-`main`, which is true on a Mac and false on the runner. That bug is fixed. The process gap is what
-this closes.
+**A green local gate is not a green build — look at the run.** The hooks are fast local feedback; CI
+is what makes them true, and it fails for reasons the hook cannot see (the runner's environment is not
+a Mac's). A local green reads as done, and a PR has been merged red that way.
 
 - **After you push, watch the run finish.** Same standard as verifying a deploy — a push you did not
   watch is not shipped, it is sent.
@@ -66,7 +60,7 @@ a PR can still bounce back with review comments — ask Sky whether to archive t
 finished, and archiving clears it from the tray (it stays reopenable from the Archived list). Never archive
 speculatively or without an explicit yes.
 
-**SAY SO WHEN THIS CHAT SHOULD END, EVEN IF THE NEXT TASK IS ALSO YOURS.** (Sky's ask, 2026-09-09.)
+**Say so when this chat should end, even if the next task is also yours** (Sky's ask).
 One chat per task is the intent, and a long session drifts off it a task at a time — each next thing
 looks small, and nobody notices the chat is now four unrelated jobs deep. Judging that is your job,
 not his: he cannot see the context filling up and should not have to guess.

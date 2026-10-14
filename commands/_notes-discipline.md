@@ -22,16 +22,13 @@ curl -sL -G "<GXCORE>" --data-urlencode action=bug_update --data-urlencode "secr
 The sender sees the note went to done, by whom, and what came of it, in their own outbox. That is
 everything a "✅ done" note carried, without occupying an inbox slot that demands its own read and resolve.
 
-**This step used to say "write note-backs — this is the whole point", and that instruction is what made the
-board grow faster than it drained.** Measured across 202 notes: every core-admin/spoke pair had run 19–32
-notes for ONE relationship, and only 15 of 177 resolutions said anything at all. Each reply created work for
-somebody else, who replied, and so on. A note has ONE lifecycle — created, then resolved with a line saying
-what happened.
+**Note-backs make the board grow faster than it drains:** each reply creates work for somebody else, who
+replies, and so on. A note has ONE lifecycle — created, then resolved with a line saying what happened.
 
 Resolve only what is **verifiably** handled. Anything still needing a decision, **surface it for Sky** —
 never auto-close on a guess.
 
-**BEFORE YOU WRITE A NOTE, CHECK WHETHER THAT APP HAS A LIVE SESSION — and if it does, message it.**
+**Before you write a note, check whether that app has a live session — and if it does, message it.**
 `ListAgents` lists the other Claude sessions on this machine; a row like `greencross-spiff-51` is a
 SPIFF chat that is open right now. `SendMessage` reaches it, and it replies into your conversation.
 

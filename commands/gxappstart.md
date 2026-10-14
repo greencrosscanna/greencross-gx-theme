@@ -76,11 +76,8 @@ b. **Scaffold the frontend — fetch the template, do NOT hand-roll chrome.**
    marks a production failure that has already happened once (the dev-guard 404 on every kiosk load,
    the `GX_EMBED` override that hides or doubles the header, per-app 2.8MB touch icons).
 
-   *This step used to be a prose code block here, and it drifted: until 2026-08-22 it prescribed a
-   direct `<script src=".../gx-dev.js">` tag and an unconditional `window.GX_EMBED = false`, neither of
-   which appears in ANY of the six live apps. A new app built from it began life already needing two
-   migrations everyone else had finished. Keep the template in gx-theme — next to the scripts it loads,
-   where a change is visible — and keep this step a fetch.*
+   Keep the template in gx-theme — next to the scripts it loads, where a change is visible — and keep
+   this step a fetch; a copy pasted here drifts from what the live apps actually use.
 
    - **Never restyle a shared component locally.** A local override of `.gx-btn-green` or `.gx-input`
      wins for this app and silently diverges from the other six — which is how the suite ended up with

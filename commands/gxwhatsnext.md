@@ -24,11 +24,7 @@ sequence, kept fresh in the CC.
    `resolve_note`, `bugs`, `bug_update`, `purge_notes`. Send
    `--data-urlencode "secret=$(cat .gx_deploy_secret)"` on all of them. Omit it and you get
    `{"ok":false,"error":"missing deploy secret — send secret=$(cat .gx_deploy_secret)"}`; send the wrong
-   one and you get `{"ok":false,"error":"bad deploy secret"}`. *(Corrected 2026-09-08: this said BOTH
-   cases returned "bad deploy secret" and warned that a missing secret reads like a wrong one. Core
-   has told them apart for a while — verified against the live routes. The warning was about a
-   confusion the code already prevents, which is worse than no warning: it sends whoever hits it
-   hunting for a secret rotation that never happened.)*
+   one and you get `{"ok":false,"error":"bad deploy secret"}`.
    - **Lingering done jobs** (`action=dev_queue`, filter to this app): a `done` job still in the queue →
      `dev_delete&id=…` to clear it; an `in_review` job whose PR is merged → `dev_ship&id=…`. Never leave
      finished work sitting `working`. *(Count cleared/shipped.)*
@@ -111,7 +107,7 @@ sequence, kept fresh in the CC.
      person, which beats a sequenced idea; but a job that is actually running still comes first, because
      the point of listing it is to stop you starting it twice.
 
-     **ONE NUMBER PER BUG, NOT TWO.** Housekeeping in step 3 already listed open bugs for disposition,
+     **One number per bug, not two.** Housekeeping in step 2 already listed open bugs for disposition,
      and these are the SAME bugs — `whats_next` returns them so the work list is complete on its own,
      not because they are new. Any bug you left open up there keeps the number it already has; say
      "still open: `[2]`" rather than renumbering it. Same rule the In-flight/What's-next overlap follows,
@@ -120,11 +116,6 @@ sequence, kept fresh in the CC.
      Do **not** merge them into the build order or the backlog. A bug has no `task_gid` and no dispatch
      state, and the backlog is where unsequenced work lands — which is **not** the same as "not now"
      (see `since_digest` below), but is still the wrong shelf for something already broken.
-
-     *Why these are here at all:* they used to appear in the cockpit and in the app's brain-notes inbox
-     but not in this list — the one an app chat actually reads to pick up work. Sky, 2026-09-03: "bugs
-     show up in cockpit, and they should show up as items to be resolved in /gxwhatsnext." That gap is
-     also why bugs ride the notes rail; a note was standing in for a work queue.
 
      Closing one is `bug_update` with `status=resolved` — and that **also closes the linked brain note
      automatically**, in both directions. Never close the note by hand to tidy the board: an open bug
@@ -157,14 +148,8 @@ sequence, kept fresh in the CC.
      completely different reasons: the digest weighed it and put it late, or the digest *never saw it*
      because it was filed afterwards. Those look identical in the payload and read identically to Sky,
      and one of them is the freshest work on the board. `since_digest` is the only thing that tells
-     them apart — use it.
-
-     *This is a corrected failure, 2026-09-09.* Four follow-ups filed at 18:40 were read back that
-     evening as a comma-separated tail under "backlog, unsequenced", beneath two items a 03:01 digest
-     had ranked. Sky had to ask where they were. **Nothing was stale** — Asana is fetched live on every
-     call, and all four came back correctly in the same response. The data was current; the
-     presentation inherited a stale ordering. So do not "fix" this by regenerating the digest: the
-     digest is not what was wrong, and `ai_strategy` is still off-limits here.
+     them apart — use it. Asana is fetched live on every call, so the data is current; only the
+     ordering is old. Do not "fix" it by regenerating the digest — `ai_strategy` is still off-limits here.
 
      Say it in one line when the count is non-zero — *"four filed since this morning's digest, so
      nothing has sequenced them yet"* — then list them. Do NOT bury them in a run-on line of titles;
@@ -178,31 +163,10 @@ sequence, kept fresh in the CC.
      every call; the digest only orders `buildOrder`. So the honest sentence is "the ordering is from
      <date>", never "the board may be out of date" — and anything filed since then is already flagged
      by `since_digest` rather than hidden by the age of the digest.
-5. **When Sky names a number, open it in a NEW session on its model — not in this chat.** (Sky,
-   2026-09-17: *"when i tell it which number to proceed with it didn't open a new session."* This step
-   used to say "start the top item right here", and every session did exactly that.)
-
-   **Hand-off, in this order — and the order is the whole point:**
-   1. `spawn_task` with a chip whose **prompt carries NO task**: only *"You will receive a task from
-      the session that opened you. Reply with one word — ready — and wait."* Put what the task IS in
-      the chip's `title` and `tldr`, which Sky sees; the session does not.
-   2. **In the same response as `spawn_task`, arm the watcher** — `Bash` with `run_in_background`:
-      `bash ~/.claude/scripts/watch-new-session.sh`. It exits when a new session registers on this
-      machine, which wakes you (the old "you are notified when he clicks it" only arrived with his NEXT
-      message, so he had to type "opened"). Then `ListAgents`, find the session by the chip's title, and
-      **set its model** (`set_session_model`) to the one on the list line. If `/tmp/cc-socks` stops
-      existing, fall back to asking him to say "opened".
-   3. **Then** `SendMessage` it the full task: what to build, the `task_gid`, the repo's rules below —
-      and tell Sky in one line to approve it in the new session. A chip session runs in a different
-      permission mode, so the task lands there as an approval card, not a delivered message. A
-      `[Cross-session delivery notice]` saying held or expired means it never arrived: resend it.
-
-   **Why the task is withheld rather than the session asked to wait:** asking does not hold. On
-   2026-09-17 a chip prompt opened with *"STOP BEFORE YOU START … reply with one line, then do
-   nothing"*, followed by the task. The session read the task and did all of it — 530 messages,
-   including an attempt to push past the safety gate — before anyone set a model. A session cannot
-   start work it has not been given. Withholding makes early start impossible; asking only makes it
-   discouraged.
+5. **When Sky names a number, open it in a NEW session on its model — not in this chat**, using the
+   three-step hand-off in step 4 (chip with no task → watcher, then `set_session_model` to the model on
+   that item's line → send the task). The task you send carries what to build, the `task_gid`, and the
+   instructions below.
 
    **What the new session then does** — send it these as part of the task:
    - **Rename this chat to the task, immediately** — do this first, before any other tool call, so the session
@@ -230,8 +194,8 @@ sequence, kept fresh in the CC.
 
      `dev_ship` (or `dev_update … status=done`) closes the loop and auto-completes the Asana to-do.
 
-Keep it tight: a one-line housekeeping result, then a short "in flight / next up / then" readout, then offer to
-build the top one. The point is to keep momentum inside the app chat.
+Keep it tight: a one-line housekeeping result, then a short "in flight / next up / then" readout, then ask
+which number to start (step 5 opens it in its own session).
 
 ## Closing out
 
