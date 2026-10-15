@@ -17,9 +17,7 @@ I've said, then reflect the setup back in one line and wait for my go-ahead:
 2. **If it's a sub-app:** which parent does it live under, and does it hand data to another
    app? (e.g., SPIFF lives under Inventory and publishes payout progress to GX Core for Crew.)
 3. **Which data sheet does it read/write?** — its own app sheet or GX Core. Never GX2.
-4. **If it's the Command Center:** which phase are we on? (0 Foundation → 1 Inventory →
-   2 Sales & Performance → 3 retire GX2 — one at a time.)
-5. **What are we trying to accomplish this session?**
+4. **What are we trying to accomplish this session?**
 
 Then confirm it back in one line — e.g. *"Got it: SPIFF sub-app of Inventory (Tawny), publishes
 payout progress to GX Core for Crew to read, goal = X. Sound right?"* — before touching any code.
@@ -93,8 +91,8 @@ Access is controlled centrally: a user gets into an app by being granted it in t
 list — no code change needed. Roles are enforced at the app login, not the data layer.
 
 ## Where the data lives (one sheet per app — NOT one giant sheet)
-- **NEVER read or write the legacy "2026 GX2 Dashboard" sheet.** We are retiring it. If a task
-  seems to need it, stop and flag it.
+- **NEVER read or write the legacy "2026 GX2 Dashboard" sheet.** It is retired — every app was cut
+  off from it by 2026-08-30. If a task seems to need it, stop and flag it.
 - Inventory data = its own dedicated Google Sheet ("Green Cross — Inventory Data"), already
   decoupled. Other apps get their own sheets the same way.
 - **GX Core** (shared sheet) is the single source of truth for cross-app data: users/roles &
@@ -138,14 +136,9 @@ list — no code change needed. Roles are enforced at the app login, not the dat
 - Shared logic (login, sheet helpers, connectors, formatting, retention) should be written once
   and reused, not re-implemented per app.
 
-## Command Center roadmap (do ONE phase at a time — don't jump ahead)
-- **Phase 0 — Foundation:** build GX Core (users/roles + access grants, stores, employees,
-  product/SKU dictionary, price-tag config) + a shared-conventions doc + a shared sign-on plan.
-- **Phase 1 — Migrate Inventory** onto GX Core (shared login + shared reference data). Proves the pattern.
-- **Phase 2 — Sales & Performance** onto the same core.
-- **Phase 3 — Retire the legacy "2026 GX2 Dashboard" sheet** once nothing reads it.
-
-Finish and review a phase before starting the next. If unsure which phase we're in, ask.
+## Command Center roadmap
+The original four phases are complete: GX Core is the foundation, Inventory, Sales and Performance run
+on it, and the GX2 sheet is retired. What to build next comes from `/gxwhatsnext`, not from a phase list.
 
 ## Reminder
 Always run the "orient me" step at the top first — don't start building until the setup is

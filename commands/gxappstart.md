@@ -109,15 +109,18 @@ d. **Generate `CLAUDE.md`** from the scope brief — mirror the GX spoke convent
    section, `/gxwhatsnext`, the "close the loop when done" policy, and the gx-theme/gx-client linkage.
    Keep it app-specific (CLAUDE.md is intentionally NOT synced).
 e. **Register in the brain (CONFIRM before sending).** Send core-admin a brain note requesting: app key
-   `$KEY` registration (sign-on / app_access / version_history) and bug-routing `inventory:$KEY → $KEY`
-   so the app's tab bugs reach this chat. `curl` `action=add_note from_app=$KEY to_app=core-admin …`.
+   `$KEY` registration (sign-on / app_access / version_history). `curl` `action=add_note from_app=$KEY
+   to_app=core-admin …`. Bugs route by app key alone, so the app's own reporter files as `app=$KEY`; if
+   it embeds in Inventory, step f also adds its tab to Inventory's `TAB_TO_APP` (`dutchie_proxy.gs`)
+   so reports from the embedded tab reach this chat too.
    State clearly that the sign-on mint is core-admin's to complete.
 f. **Parent embed (if sub-of-Inventory).** Prepare the tab + iframe change on `greencross-inventory`
    (that repo is PR-gated) as a branch + PR pointing at `$PAGES?embed=1`. **Mirror the `spiff` tab, not
    `pricetags`** — spiff is the current pattern and pricetags is a stale slug. Copy three things:
    the `<button class="tab gx-topnav-tab" data-tab="$KEY" id="tab…" style="display:none">`, the
    `<div class="panel" id="panel-$KEY">` + iframe, and the chrome branches that hide `.date-controls`
-   and `ctrlBar` when that tab is active.
+   and `ctrlBar` when that tab is active. Add `$KEY: '$KEY'` to `TAB_TO_APP` in `handleBugReport`
+   (`dutchie_proxy.gs`) so a bug filed from the embedded tab files under this app.
    **Gate the tab on access.** Do not render it for everyone: ask GX Core `action=grants` with the
    session token and show it only when the user holds `$KEY` — honoring `isSuperadmin`, because a
    superadmin has NO per-app grant row and gating on the grant list alone hides the tab from the one

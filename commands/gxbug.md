@@ -37,8 +37,9 @@ core-admin should read "Won't load settings", not repeat the app in its own titl
 You are in the repo. Do not make the reporter supply what you can read:
 
 - `app_version` — the app's version constant (`APP_VERSION`, `GC.VERSION`, or the `?v=NN` cache-buster).
-- `tab` — the sub-app if the report names one (`pricecards`, `spiff`), so bug routing sends it to the
-  right chat rather than the parent's.
+- If the report is about a sub-app (`pricecards`, `spiff`), file it under **that sub-app's own app
+  key**, not the parent's — GX Core routes bugs by `app` alone, so a Price Cards bug filed as
+  `inventory` never reaches the Price Cards chat. `tab` then names the page it happened on.
 - `severity` — `low` · `normal` · `high` · `critical`. Default `normal`. Read it from the language:
   data loss, a security hole, or "everyone is blocked" is `critical` or `high`. Do not inflate;
   a board where everything is high is a board with no priorities.
