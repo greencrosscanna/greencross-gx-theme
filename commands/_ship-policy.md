@@ -7,9 +7,10 @@ the change.
     Pages + `clasp deploy` for the proxy + records `deploy_version`), verify live, then **`dev_ship`**.
   - **Feature** (new capability, iterative, changes a workflow, or would look half-done mid-build) →
     develop on a **`feat/…` branch + PR**, iterate there, report `dev_update … status=in_review pr_url=…`,
-    and **let Sky merge** — merging is shipping. Staff see it appear once, working. Preview without
-    exposing staff via a **`cfg.<feature>` flag** (ship dark, flip on from the cockpit) or a local
-    preview; the versioned proxy stages backend without repointing the live one. On merge → **`dev_ship`**.
+    and **merge it yourself once it is green** (see "Who merges" below) — merging is shipping. Staff see
+    it appear once, working. Preview without exposing staff via a **`cfg.<feature>` flag** (ship dark,
+    flip on from the cockpit) or a local preview; the versioned proxy stages backend without repointing
+    the live one. On merge → **`dev_ship`**.
   - Test: *"Would staff notice it mid-bake / does it change their workflow?"* → branch. Trivial/invisible → direct.
 - **`crew` and `spiff` move pay** — Crew runs payroll and SPIFF feeds vendor dollars into it — so
   between them a half-built change can pay someone the wrong amount. Lean toward the branch.
@@ -19,6 +20,24 @@ the change.
   versions are immutable and pinned by every spoke, so a bad one silently breaks all apps. (`core-admin`
   itself deploys directly with Sky watching, but treats library-version cuts as gated.)
 - Full rationale + the flag pattern: **DEV_NOTES.md** in the GX Core repo.
+
+## Who merges (Sky's ask, 2026-10-30)
+
+**A session merges its own feature PR.** Sky has never declined one, so the hand-off was a wasted step.
+Merge when ALL hold, then say so in your reply (PR, what it changed, that checks were green):
+
+- the full test suite and the push gate are **green** — a red or unrun check is not green (see
+  `_closeout.md`), and a PR with no run at all is unproven;
+- the PR matches what Sky asked for — if it grew beyond the ask, do not merge; tell him what grew;
+- it is a feature PR in a spoke. `spiff` and `crew` follow the same rule.
+
+**A merge is not a deploy.** Merging puts the code on `main`; it does not push it live anywhere. These keep
+their existing rules and are NOT covered by the permission above:
+
+- **Deploys** — Sky's word in chat first. For `spiff` and `crew` (they move pay) that holds even after a
+  green merge.
+- **GX Core library cuts** — still PR-gated and Sky-approved; a session does not merge or cut those.
+- **Anything touching `greencross-gx-theme` or the hub** — `core-admin`'s job, PR and Sky as before.
 
 ## Who says go
 
