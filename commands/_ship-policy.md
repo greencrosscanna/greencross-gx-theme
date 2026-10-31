@@ -29,15 +29,20 @@ Merge when ALL hold, then say so in your reply (PR, what it changed, that checks
 - the full test suite and the push gate are **green** — a red or unrun check is not green (see
   `_closeout.md`), and a PR with no run at all is unproven;
 - the PR matches what Sky asked for — if it grew beyond the ask, do not merge; tell him what grew;
-- it is a feature PR in a spoke. `spiff` and `crew` follow the same rule.
+- it is a feature PR in a spoke **or in the hub** (`greencross-command-center`, including `gx_core.gs`
+  changes — extended 2026-10-30, Sky: "update the rule so to include hub changes"). `spiff` and `crew`
+  follow the same rule.
 
 **A merge is not a deploy.** Merging puts the code on `main`; it does not push it live anywhere. These keep
 their existing rules and are NOT covered by the permission above:
 
 - **Deploys** — Sky's word in chat first. For `spiff` and `crew` (they move pay) that holds even after a
   green merge.
-- **GX Core library cuts** — still PR-gated and Sky-approved; a session does not merge or cut those.
-- **Anything touching `greencross-gx-theme` or the hub** — `core-admin`'s job, PR and Sky as before.
+- **GX Core library cuts (`./ship.sh`)** — Sky's word in chat first, every time. A session may MERGE a
+  green hub PR, but a cut makes an immutable version every spoke can pin, so it waits for his go.
+- **`greencross-gx-theme`'s URL-loaded files** — for those a merge IS a deploy (GitHub Pages serves them to
+  every app within the 10-minute cache), so they stay PR-and-Sky. Other gx-theme files (commands, docs)
+  follow the normal rule.
 
 ## Who says go
 
