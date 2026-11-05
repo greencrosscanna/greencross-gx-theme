@@ -28,8 +28,25 @@ replies, and so on. A note has ONE lifecycle — created, then resolved with a l
 Resolve only what is **verifiably** handled. Anything still needing a decision, **surface it for Sky** —
 never auto-close on a guess.
 
-**Before you write a note, check whether that app has a live session — and if it does, message it.**
-`ListAgents` lists the other Claude sessions on this machine; a row like `greencross-spiff-51` is a
+**Handing work or news to another app: message first, ask Sky before falling back to a note.**
+Sky's rule (2026-11-05): *"I prefer to get things done rather than add to the to-do list."* A note
+waits for whoever opens that repo next. A message gets the work moving now. Go down this order and
+stop at the first one that applies:
+
+1. **Message the session that referred the work.** That is the session that started you, sent you
+   the ask, or filed the note you are answering. It has the context and is usually waiting on you.
+2. **Otherwise, message a live session in that app.** Check `ListAgents` for a chat open in that
+   repo.
+3. **Otherwise, ask Sky. Do not quietly file a note.** One short question with two choices:
+   **start a new chat with that app's agent now** (recommended) or **leave it as a note**. Only
+   leave a note when he picks it, or when he has already said he is away.
+
+A note is still added **as well as** the message when the thing has to survive the conversation:
+a contract change, a version to re-pin to, a decision. That note is the record. The message is what
+gets the work done. On 2026-11-05 a GXCore cut was announced by note only, and Sky had to ask
+*"did you send that message to them"*. That is the failure this order exists to prevent.
+
+`ListAgents` lists the other Claude sessions on this machine. A row like `greencross-spiff-51` is a
 SPIFF chat that is open right now. `SendMessage` reaches it, and it replies into your conversation.
 
 ```
@@ -54,7 +71,7 @@ and none of it obtainable from a note:
 **What still belongs in a note.** A message is a conversation with someone who is present; a note is a
 record for someone who is not:
 
-- **Nobody is live in that repo.** `ListAgents` shows no session for it → write the note.
+- **Nobody is live in that repo, and Sky chose a note** over a new chat (step 3 above).
 - **It must survive this conversation.** A decision, a contract change, something the next session
   must see. Messages are not in an inbox and nobody sweeps them. If it matters next week, it is a note
   — or, when it is genuinely done, a `resolution=` on the note you are closing.
