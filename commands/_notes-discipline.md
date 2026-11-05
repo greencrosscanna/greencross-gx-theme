@@ -41,6 +41,12 @@ stop at the first one that applies:
    **start a new chat with that app's agent now** (recommended) or **leave it as a note**. Only
    leave a note when he picks it, or when he has already said he is away.
 
+**When your work is DONE, report back to the referring session (step 1), then archive your own
+chat** (Sky's ask, 2026-11-05: it keeps the number of open chats down). "Done" means the work is
+done, not just this chat's part of it. If you are waiting on a session you handed work to, or on
+Sky's answer, stay open. Archive only after the report was delivered. If nobody referred the work
+to you, finish your reply to Sky and leave the chat open, since he is the one reading it.
+
 A note is still added **as well as** the message when the thing has to survive the conversation:
 a contract change, a version to re-pin to, a decision. That note is the record. The message is what
 gets the work done. On 2026-11-05 a GXCore cut was announced by note only, and Sky had to ask
