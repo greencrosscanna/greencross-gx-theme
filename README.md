@@ -47,6 +47,12 @@ Served publicly via GitHub Pages so any app can import it with no build step:
   </script>
   ```
   (Master Control / GAS-served pages with a strict CSP should inline a copy instead of `<script src>`.)
+- `gx-jointloader.js` — the **burning-joint loading screen**. `GXJointLoader.screen({ appName, logo, lines })`
+  returns `{ done(), cancel() }`; `tabHtml(title, logo)` is a CSS-only page for a just-opened tab. Covers
+  the sign-in card (z 9999), stays under the maintenance gate (10000), honors reduced-motion. No top bar.
+  ```html
+  <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-jointloader.js?v=1"></script>
+  ```
 - `gx-maintenance.js` + `gx-maintenance.json` — the **maintenance gate**: the "out back" screen an app
   shows when it is deliberately down, and the flag that turns it on. Wire it once per app and leave it:
   ```html
