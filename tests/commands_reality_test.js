@@ -40,7 +40,7 @@ const skipf = l => { skip++; console.log('  SKIP  ' + l); };
 /* The canonical keys. core-admin is the hub and carries no .gx_app, so it is named here; every other
    key is verified against the repo that claims it below. */
 const HUB_KEY = 'core-admin';
-const SPOKE_KEYS = ['inventory', 'performance', 'sales', 'pricecards', 'spiff', 'crew'];
+const SPOKE_KEYS = ['inventory', 'performance', 'sales', 'pricecards', 'spiff', 'crew', 'portal', 'displayshop'];
 const REAL = [HUB_KEY].concat(SPOKE_KEYS);
 
 console.log('\n1. the key list is real (verified against sibling .gx_app files)');

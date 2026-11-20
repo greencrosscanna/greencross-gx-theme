@@ -1,7 +1,7 @@
 **Ship policy — staff use these apps daily, so don't let them watch a feature bake:** match the flow to
 the change.
 
-- **Live spokes** (`inventory`, `sales`, `performance`, `pricecards`, `spiff`, `crew`):
+- **Live spokes** (`inventory`, `sales`, `performance`, `pricecards`, `spiff`, `crew`, `portal`, `displayshop`):
   - **Small / instant fix** (rename a tab, copy tweak, a contained bug fix that's correct the moment it
     lands) → **ship DIRECT to `main`**: commit only your changed files, run `deploy.sh` (git push `main` →
     Pages + `clasp deploy` for the proxy + records `deploy_version`), verify live, then **`dev_ship`**.
