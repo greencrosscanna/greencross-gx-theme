@@ -27,6 +27,27 @@
  *
  * NEVER RETRIED. The code is single-use: a second attempt after a lost response can only ever be
  * refused, so the one request is sent once, and a failure falls back to the sign-in form.
+ *
+ * "SIGN IN WITH GOOGLE" ON EVERY APP'S SIGN-IN SCREEN (Sky, 2026-11-23). When the person is NOT
+ * arriving with a code, this file puts one button above the app's password form that goes to
+ *   https://apps.greencrosscanna.com/?open=<app key>
+ * The portal signs them in with Google (or sees they already are) and hands straight back here with a
+ * code, so they land in this app signed in. The password form stays exactly as it is.
+ *
+ *   - WHICH APP. No app had to change for this, and every app today calls run() ONLY when a code was
+ *     captured — so the key is read at load from where the page is served (PAGES_APPS below: the
+ *     GitHub Pages folder → GX Core key, which is not derivable: greencross-leaderboard is
+ *     `performance`). A page may state it instead with data-gx-app="<key>" on this script tag, and a
+ *     run({app}) call — with or without a code — names it too. Any other host (localhost, Apps Script,
+ *     the hub's Command Center) gets no button unless the page says which app it is.
+ *   - WHICH FORM. A <form> holding an input[type=password] that is the suite's sign-in form
+ *     (.gx-login-form, or inside .gx-login). A change-password form elsewhere in an app is not it.
+ *     No such form → nothing happens. The form may be drawn later (most apps paint their sign-in from
+ *     JS, and repaint it on sign-out), so the page is watched and the button re-added when needed —
+ *     never more than one per page.
+ *   - NOT WHEN NESTED. Inside another app's frame (Price Cards / SPIFF in Inventory), the button would
+ *     navigate the frame, so it is not shown. Same detection as gx-topnav.js.
+ *   - NOT WHEN SIGNED IN. If run() is given current() and it names someone, no button.
  */
 (function (global) {
   'use strict';
@@ -90,11 +111,102 @@
     };
   }
 
+  // ── 3. no code: offer "Sign in with Google" (via the staff portal) above the password form ──
+  var PORTAL_URL = 'https://apps.greencrosscanna.com/';
+  var BTN_ID = 'gx-handoff-google';
+  var APP_KEY_RE = /^[a-z][a-z0-9-]{1,31}$/;
+  var PAGES_HOST = 'greencrosscanna.github.io';
+  var PAGES_APPS = {
+    'greencross-inventory': 'inventory',
+    'greencross-sales': 'sales',
+    'greencross-leaderboard': 'performance',
+    'greencross-crew': 'crew',
+    'greencross-spiff': 'spiff',
+    'greencross-price-cards': 'pricecards',
+    'greencross-displayshop': 'displayshop',
+  };
+
+  function appFromLocation(loc) {
+    if (!loc || String(loc.hostname || '').toLowerCase() !== PAGES_HOST) return null;
+    var seg = String(loc.pathname || '').split('/')[1] || '';
+    return Object.prototype.hasOwnProperty.call(PAGES_APPS, seg) ? PAGES_APPS[seg] : null;
+  }
+
+  function isEmbedded(w) {
+    try {
+      if (typeof w.GX_EMBED === 'boolean') return w.GX_EMBED;
+      if (/[?&]embed=1\b/.test(String((w.location && w.location.search) || ''))) return true;
+      return w.self !== w.top;
+    } catch (e) { return true; }   // cross-origin access threw: we are framed
+  }
+
+  function isSignInForm(f) {
+    if (!f || !f.querySelector || !f.querySelector('input[type="password"]')) return false;
+    var cls = ' ' + String(f.className || '') + ' ';
+    if (cls.indexOf(' gx-login-form ') >= 0) return true;
+    return !!(f.closest && f.closest('.gx-login'));
+  }
+
+  var want = { app: null, current: null };
+  function offerGoogle(w) {
+    var d = w.document;
+    if (!d || !d.body || !d.querySelectorAll) return false;
+    var app = want.app;
+    if (!app || !APP_KEY_RE.test(app) || isEmbedded(w)) return false;
+    var who = null; try { who = want.current ? want.current() : null; } catch (e) {}
+    var href = PORTAL_URL + '?open=' + encodeURIComponent(app);
+    var have = d.getElementById(BTN_ID);
+    if (have) { if (have.getAttribute('href') !== href) have.setAttribute('href', href); return true; }
+    if (who) return false;
+    var forms = d.querySelectorAll('form'), f = null;
+    for (var i = 0; i < forms.length; i++) { if (isSignInForm(forms[i])) { f = forms[i]; break; } }
+    if (!f || !f.parentNode) return false;
+    var a = d.createElement('a');
+    a.id = BTN_ID;
+    a.className = 'gx-btn gx-login-submit';            // the suite's own sign-in button, outline variant
+    a.setAttribute('href', href);
+    a.textContent = 'Sign in with Google';
+    a.style.cssText = 'margin:0 0 14px;text-decoration:none;';   // 14px = .gx-login-form's own gap
+    f.parentNode.insertBefore(a, f);
+    return true;
+  }
+
+  var watching = false;
+  function watch(app, current) {
+    if (!app || !APP_KEY_RE.test(String(app))) return;
+    want.app = String(app);
+    if (typeof current === 'function') want.current = current;
+    if (watching) { try { offerGoogle(global); } catch (e) {} return; }
+    watching = true;
+    whenBody(function () {
+      var pending = false;
+      function check() { pending = false; try { offerGoogle(global); } catch (e) {} }
+      check();
+      // Sign-in forms are painted by JS, and repainted on sign-out: watch, and coalesce bursts into one
+      // look on the next tick (a kiosk mutates its DOM constantly; each look is one id lookup + a
+      // handful of forms).
+      if (typeof global.MutationObserver === 'function') {
+        try {
+          new global.MutationObserver(function () {
+            if (!pending) { pending = true; setTimeout(check, 0); }
+          }).observe(global.document.body, { childList: true, subtree: true });
+        } catch (e) {}
+      }
+    });
+  }
+
+  function signedIn(opts) {
+    try { return typeof opts.current === 'function' ? !!opts.current() : false; } catch (e) { return false; }
+  }
+
   var ran = false;
   function run(opts) {
     opts = opts || {};
     var code = captured;
-    if (!code || ran) return Promise.resolve(null);
+    if (!code || ran) {
+      if (!code && opts.app && !signedIn(opts)) watch(opts.app, opts.current);
+      return Promise.resolve(null);
+    }
     ran = true; captured = null; api.code = null;   // single use on this side too
     if (!opts.app || typeof opts.save !== 'function') return Promise.resolve(null);
     var current = typeof opts.current === 'function' ? opts.current : function () { return null; };
@@ -118,10 +230,22 @@
           : 'Could not sign you in from the portal — sign in below, or open the app from the portal again.', 'bad');
         clearBanner(7000);
       });
+      watch(opts.app, current);   // left on the password form: offer Google beside it too
       return null;
     });
   }
 
-  var api = { code: captured, run: run, _capture: capture, _CODE_RE: CODE_RE };
+  var api = { code: captured, run: run, _capture: capture, _CODE_RE: CODE_RE,
+              _appFromLocation: appFromLocation, _offer: function () { return offerGoogle(global); } };
   global.GXHandoff = api;
+
+  // No code in the address bar: offer Google on this app's sign-in screen, with no change in the app.
+  if (!captured) {
+    try {
+      var me = global.document && global.document.currentScript;
+      var declared = me && me.getAttribute ? me.getAttribute('data-gx-app') : null;
+      var atLoad = declared || appFromLocation(global.location);
+      if (atLoad) watch(atLoad);
+    } catch (e) {}
+  }
 })(typeof window !== 'undefined' ? window : this);
