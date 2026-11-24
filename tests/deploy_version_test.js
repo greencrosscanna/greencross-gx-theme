@@ -185,5 +185,42 @@ console.log('\n8. deploy.sh reads HEAD, not the working tree');
   ok(rejected, 'a GX_VERSION override still goes through the vMAJOR.BBB gate');
 }
 
+console.log('\n9. it reads the APP\'s own version, not the first ?v= on the page');
+{
+  /* 2026-11-23: SPIFF was filed as v2.034 (postmortem.js, its first script) and the Portal as v1.111
+     (gx-jointloader.js), and each mislabeled run overwrote the real row for that older version. Runs
+     the REAL _extract_version() from deploy.sh, with the app key set the way gx-sync fills it, against
+     the tag order those pages actually carry. */
+  const fStart = DEPLOY.indexOf('_extract_version() {');
+  const fEnd = DEPLOY.indexOf('\n}\n', fStart);
+  if (fStart < 0 || fEnd < 0) {
+    ok(false, 'LOAD: could not find _extract_version() in deploy.sh');
+  } else {
+    const FN = DEPLOY.slice(fStart, fEnd + 2);
+    const run = (app, html) => {
+      const tmp = path.join(require('os').tmpdir(), 'gxdeployver-own.html');
+      fs.writeFileSync(tmp, html);
+      try {
+        return execFileSync('bash', ['-c', 'set -euo pipefail; APP="$1"; ' + FN + '\n_extract_version "$(cat "$2")"', '_', app, tmp],
+                            { encoding: 'utf8' }).trim();
+      } catch (e) { return '<<error>>'; }
+    };
+    const tags = list => list.map(s => '<script src="' + s + '"></script>').join('\n');
+    const SPIFF = '<link rel="stylesheet" href="spiff.css?v=2.034"/>\n' +
+      tags(['postmortem.js?v=2.034', 'marketing.js?v=2.034', 'site.js?v=2.034', 'spiff.js?v=2.036']);
+    ok(run('spiff', SPIFF) === 'v2.036', 'spiff — spiff.js wins over the helper scripts before it → ' + run('spiff', SPIFF));
+    const PORTAL = tags(['https://greencrosscanna.github.io/greencross-gx-theme/gx-jointloader.js?v=1.111', 'portal.js?v=1.112']);
+    ok(run('portal', PORTAL) === 'v1.112', 'portal — portal.js wins over the shared loader → ' + run('portal', PORTAL));
+    const CREW = tags(['https://greencrosscanna.github.io/greencross-gx-theme/gx-client.js?v=9', 'crew.js?v=1.438']);
+    ok(run('crew', CREW) === 'v1.438', 'crew — its own script → ' + run('crew', CREW));
+    const PC = tags(['gx-handoff.js?v=3', 'generator.js?v=1.448']);
+    ok(run('pricecards', PC) === 'v1.448', 'pricecards — no script named for the key, so the first non-gx-* one → ' + run('pricecards', PC));
+    ok(run('sales', tags(['gx-client.js?v=4']) + "\n<script>const APP_VERSION = 'v2.623';</script>") === 'v2.623',
+       'a monolith whose only versioned script is shared still falls through to APP_VERSION');
+    ok(run('spiff', tags(['notspiff.js?v=9.999', 'spiff.js?v=2.036'])) === 'v2.036',
+       'the key must be the WHOLE filename — notspiff.js is not spiff.js');
+  }
+}
+
 console.log('\n' + (fail ? 'FAILED' : 'ok') + ' — ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
