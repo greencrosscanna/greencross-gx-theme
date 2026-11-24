@@ -3,7 +3,10 @@
    "Burning joint loading bar" (claude.ai/artifact/JZd5hJ4PgFvox7gkR1UQtc, 2026-11-19) to plain JS.
 
    Shared by every GX app, loaded by URL from Pages:
-     <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-jointloader.js?v=1"></script>
+     <script src="https://greencrosscanna.github.io/greencross-gx-theme/gx-jointloader.js"></script>
+   Do NOT add a ?v= to that tag: deploy.sh reads an app's version from the first ?v= it finds on a
+   script tag, so "?v=1" made five apps record as "v1" and fail the vMAJOR.BBB format. Load it AFTER
+   gx-handoff.js (the handoff test forbids the other order).
    Self-contained on purpose (styles injected once, no dependencies). z-index 9999: above the sign-in
    card, below the maintenance gate (10000). There is deliberately NO thin top progress bar (removed
    at Sky's request, portal v1.110) — do not add one back.
