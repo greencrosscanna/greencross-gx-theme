@@ -44,7 +44,9 @@ jobs:
         with:
           path: greencross-gx-theme
 
-      # The six PUBLIC spokes. No token needed and none wanted.
+      # The eight PUBLIC spokes. No token needed and none wanted. The Portal and Display Shop were
+      # added 2026-11-23: commands_reality_test.js asserts every .gx_app key on disk, so leaving them
+      # out made main's CI red while the local gate (which has every sibling) stayed green.
       - uses: actions/checkout@v7
         with: { repository: greencrosscanna/greencross-inventory,   path: greencross-inventory }
       - uses: actions/checkout@v7
@@ -57,6 +59,10 @@ jobs:
         with: { repository: greencrosscanna/greencross-spiff,       path: greencross-spiff }
       - uses: actions/checkout@v7
         with: { repository: greencrosscanna/greencross-price-cards, path: greencross-price-cards }
+      - uses: actions/checkout@v7
+        with: { repository: greencrosscanna/greencross-portal,      path: greencross-portal }
+      - uses: actions/checkout@v7
+        with: { repository: greencrosscanna/greencross-displayshop, path: greencross-displayshop }
 
       - uses: actions/setup-node@v7
         with:
@@ -110,7 +116,8 @@ jobs:
             echo ""
             missing=""
             for r in greencross-inventory greencross-leaderboard greencross-sales \
-                     greencross-crew greencross-spiff greencross-price-cards; do
+                     greencross-crew greencross-spiff greencross-price-cards \
+                     greencross-portal greencross-displayshop; do
               [ -d "../$r" ] || missing="$missing $r"
             done
             if [ -n "$missing" ]; then
@@ -118,7 +125,7 @@ jobs:
               echo "> They need no token, so this means a checkout step failed — not that coverage"
               echo "> is optional. Do not read this run as green."
             else
-              echo "All six public spokes present — the cross-repo suites genuinely ran here."
+              echo "All eight public spokes present — the cross-repo suites genuinely ran here."
             fi
             echo ""
             echo "> \`greencross-command-center\` is private and is deliberately NOT checked out."
