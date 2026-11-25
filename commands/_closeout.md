@@ -58,7 +58,9 @@ than inventing something to offer.
 a PR can still bounce back with review comments — ask Sky whether to archive the session, and call
 `archive_session` with `session_id: "self"` only if he says yes. One chat per task means a shipped chat is
 finished, and archiving clears it from the tray (it stays reopenable from the Archived list). Never archive
-speculatively or without an explicit yes.
+speculatively or without an explicit yes. **Run `sh ./gxclaim.sh release` just before you archive** — the
+SessionEnd hook frees the repo when the chat ends, but an archive that is interrupted leaves the chat
+alive and the repo locked (greencross-spiff, 2026-11-24). Releasing first means that cannot happen.
 
 **Say so when this chat should end, even if the next task is also yours** (Sky's ask).
 One chat per task is the intent, and a long session drifts off it a task at a time — each next thing
