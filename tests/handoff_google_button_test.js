@@ -17,6 +17,7 @@ const path = require('path');
 let pass = 0, fail = 0;
 const ok = (c, l) => { c ? (pass++, console.log('  PASS  ' + l)) : (fail++, console.log('  FAIL  ' + l)); };
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'gx-handoff.js'), 'utf8');
+const SRC_HOLDER = { src: SRC };   // section 7 swaps in the GOOGLE_ONLY = false copy
 const CODE = 'h1.' + 'Ab9_-'.repeat(8) + 'xyz';
 const PORTAL = 'https://apps.greencrosscanna.com/?open=';
 
@@ -77,7 +78,7 @@ function boot(o) {
   win.self = win; win.top = o.framed ? {} : win;
   if (typeof o.GX_EMBED === 'boolean') win.GX_EMBED = o.GX_EMBED;
   (o.before || []).forEach(n => body.appendChild(n));
-  new Function('window', SRC)(win);
+  new Function('window', SRC_HOLDER.src)(win);
   const mutate = () => { st.observers.forEach(cb => cb([])); return tick(); };
   const buttons = () => body.querySelectorAll('a').filter(a => a.id === 'gx-handoff-google');
   return { win, st, body, doc, GX: win.GXHandoff, mutate, buttons };
@@ -110,10 +111,15 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     const b = buttons();
     ok(b.length === 1, 'exactly one button');
     ok(b[0] && b[0].getAttribute('href') === PORTAL + 'inventory', 'it goes to the portal with ?open=inventory');
-    ok(b[0] && c.card.children.indexOf(b[0]) === c.card.children.indexOf(c.form) - 1, 'it sits directly above the form, inside the card');
-    ok(b[0] && b[0].className === 'gx-btn gx-login-submit', "styled with the suite's own sign-in button classes");
+    const kids = c.card.children, note = kids.find(n => n.id === 'gx-handoff-google-note');
+    ok(b[0] && note && kids.indexOf(b[0]) + 1 === kids.indexOf(note) && kids.indexOf(note) + 1 === kids.indexOf(c.form),
+      'button, then the one-line note, then the form — inside the card');
+    ok(b[0] && b[0].className === 'gx-btn gx-btn-green gx-login-submit', "styled as the suite's primary sign-in button");
     ok(b[0] && b[0].textContent === 'Sign in with Google', 'and says what it does');
-    ok(c.form.querySelector('input[type="password"]'), 'the password form is untouched');
+    ok(note && /Password sign-in is turned off/.test(note.textContent), 'the note says why there is no password box');
+    ok(c.form.style.display === 'none' && c.form.getAttribute('aria-hidden') === 'true', 'GOOGLE ONLY: the password form is hidden');
+    ok(c.form.parentNode === c.card && c.form.querySelector('input[type="password"]'), '…hidden, not removed, so the app\'s own code still finds it');
+    ok(!b[0].getAttribute('target'), 'top-level page: an ordinary link');
     await mutate(); await mutate(); GX._offer(); GX._offer();
     ok(buttons().length === 1, 'repeated checks never add a second');
     const lb = boot({ path: '/greencross-leaderboard/', before: [loginCard().wrap] });
@@ -134,6 +140,14 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     t.body.appendChild(loginCard().wrap);
     await t.mutate();
     ok(t.buttons().length === 1, 'signed out again, a fresh form → one button again');
+    // An app that repaints ONLY the form, leaving the card (and the button) in place.
+    const card = t.body.children[t.body.children.length - 1].children[0];
+    const old = card.children.find(n => n.tagName === 'FORM');
+    card.removeChild(old);
+    const fresh = card.appendChild(el('form', { class: 'gx-login-form' }));
+    fresh.appendChild(el('input', { type: 'password' }));
+    await t.mutate();
+    ok(t.buttons().length === 1 && fresh.style.display === 'none', 'only the form repainted → still one button, and the new form is hidden too');
   }
 
   console.log('\n4. only the sign-in form, and nothing when there is none');
@@ -149,11 +163,15 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     ok(boot({ before: [inLogin.wrap] }).buttons().length === 1, 'a plain form inside .gx-login still counts');
   }
 
-  console.log('\n5. never inside another app, and never on a page that did not ask');
+  console.log('\n5. inside another app it opens the whole window; never on a page that did not ask');
   {
-    ok(boot({ framed: true, path: '/greencross-spiff/', before: [loginCard().wrap] }).buttons().length === 0, 'framed (SPIFF inside Inventory) → nothing');
-    ok(boot({ search: '?embed=1', path: '/greencross-price-cards/', before: [loginCard().wrap] }).buttons().length === 0, '?embed=1 → nothing');
-    ok(boot({ GX_EMBED: true, before: [loginCard().wrap] }).buttons().length === 0, 'window.GX_EMBED = true → nothing');
+    const top = t => t.buttons().length === 1 && t.buttons()[0].getAttribute('target') === '_top';
+    const fr = loginCard();
+    const framed = boot({ framed: true, path: '/greencross-spiff/', before: [fr.wrap] });
+    ok(top(framed) && framed.buttons()[0].getAttribute('href') === PORTAL + 'spiff', 'framed (SPIFF inside Inventory) → one button, target=_top, its own key');
+    ok(fr.form.style.display === 'none', '…and the useless password form is hidden there too');
+    ok(top(boot({ search: '?embed=1', path: '/greencross-price-cards/', before: [loginCard().wrap] })), '?embed=1 → target=_top');
+    ok(top(boot({ GX_EMBED: true, before: [loginCard().wrap] })), 'window.GX_EMBED = true → target=_top');
     const cc = boot({ host: 'script.google.com', path: '/macros/s/x/exec', before: [loginCard().wrap] });
     ok(cc.buttons().length === 0 && cc.st.observers.length === 0, "the hub's Command Center: nothing, and nothing even watching");
     ok(boot({ host: 'localhost', path: '/', before: [loginCard().wrap] }).buttons().length === 0, 'local dev → nothing');
@@ -183,6 +201,19 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     const f = boot({ before: [loginCard().wrap] });
     await f.GX.run({ app: '../../evil', save() {} });
     ok(f.buttons()[0] && f.buttons()[0].getAttribute('href') === PORTAL + 'inventory', 'a malformed run() key cannot redirect the button');
+  }
+
+  console.log('\n7. the rollback switch: GOOGLE_ONLY = false restores the password form exactly');
+  {
+    const ORIG = SRC;
+    const off = ORIG.replace('var GOOGLE_ONLY = true;', 'var GOOGLE_ONLY = false;');
+    ok(off !== ORIG, 'the switch exists, spelled the way the rollback note says');
+    const bootOff = (o) => { const prev = SRC_HOLDER.src; SRC_HOLDER.src = off; try { return boot(o); } finally { SRC_HOLDER.src = prev; } };
+    const c = loginCard();
+    const t = bootOff({ before: [c.wrap] });
+    ok(t.buttons().length === 1 && t.buttons()[0].className === 'gx-btn gx-login-submit', 'off: the outline button above the form, as before');
+    ok(c.form.style.display !== 'none' && !t.doc.getElementById('gx-handoff-google-note'), 'off: the form is visible and there is no note');
+    ok(bootOff({ framed: true, path: '/greencross-spiff/', before: [loginCard().wrap] }).buttons().length === 0, 'off: framed → nothing, as before');
   }
 
   console.log('\n' + (fail ? 'FAILED' : 'OK') + ' — ' + pass + ' passed, ' + fail + ' failed');

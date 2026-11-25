@@ -32,7 +32,9 @@
  * arriving with a code, this file puts one button above the app's password form that goes to
  *   https://apps.greencrosscanna.com/?open=<app key>
  * The portal signs them in with Google (or sees they already are) and hands straight back here with a
- * code, so they land in this app signed in. The password form stays exactly as it is.
+ * code, so they land in this app signed in. Since 2026-11-24 (GOOGLE_ONLY below) the button REPLACES
+ * the password form: the form is hidden, a one-line note says why, and inside a frame the button opens
+ * the portal in the whole window. With GOOGLE_ONLY false, the form stays exactly as it was.
  *
  *   - WHICH APP. No app had to change for this, and every app today calls run() ONLY when a code was
  *     captured — so the key is read at load from where the page is served (PAGES_APPS below: the
@@ -45,8 +47,9 @@
  *     No such form → nothing happens. The form may be drawn later (most apps paint their sign-in from
  *     JS, and repaint it on sign-out), so the page is watched and the button re-added when needed —
  *     never more than one per page.
- *   - NOT WHEN NESTED. Inside another app's frame (Price Cards / SPIFF in Inventory), the button would
- *     navigate the frame, so it is not shown. Same detection as gx-topnav.js.
+ *   - NESTED. Inside another app's frame (Price Cards / SPIFF in Inventory), a plain link would
+ *     navigate the frame. With GOOGLE_ONLY it opens in the whole window (target=_top); without it, no
+ *     button. Same detection as gx-topnav.js.
  *   - NOT WHEN SIGNED IN. If run() is given current() and it names someone, no button.
  */
 (function (global) {
@@ -140,6 +143,23 @@
     } catch (e) { return true; }   // cross-origin access threw: we are framed
   }
 
+  /* GOOGLE ONLY (Sky, 2026-11-24). GX Core refuses every password sign-in (kv cfg.passwordOffUsers = *,
+     library v387), so a password box is a box that cannot work. With this on, the button replaces the
+     form instead of sitting above it: the form is hidden, not removed, so no app's own code breaks.
+     ROLLBACK: if passwords are turned back on in GX Core, set this to false — that is the whole undo.
+     Inside another app's frame the button opens the portal in the whole window (target=_top) rather
+     than being left out, because with the form hidden it is the only way in. */
+  var GOOGLE_ONLY = true;
+  var NOTE_ID = 'gx-handoff-google-note';
+
+  function hideSignInForms(d) {
+    var forms = d.querySelectorAll('form');
+    for (var i = 0; i < forms.length; i++) {
+      var f = forms[i];
+      if (isSignInForm(f) && f.style.display !== 'none') { f.style.display = 'none'; f.setAttribute('aria-hidden', 'true'); }
+    }
+  }
+
   function isSignInForm(f) {
     if (!f || !f.querySelector || !f.querySelector('input[type="password"]')) return false;
     var cls = ' ' + String(f.className || '') + ' ';
@@ -152,22 +172,39 @@
     var d = w.document;
     if (!d || !d.body || !d.querySelectorAll) return false;
     var app = want.app;
-    if (!app || !APP_KEY_RE.test(app) || isEmbedded(w)) return false;
+    if (!app || !APP_KEY_RE.test(app)) return false;
+    var framed = isEmbedded(w);
+    if (framed && !GOOGLE_ONLY) return false;
     var who = null; try { who = want.current ? want.current() : null; } catch (e) {}
     var href = PORTAL_URL + '?open=' + encodeURIComponent(app);
     var have = d.getElementById(BTN_ID);
-    if (have) { if (have.getAttribute('href') !== href) have.setAttribute('href', href); return true; }
+    if (have) {
+      if (have.getAttribute('href') !== href) have.setAttribute('href', href);
+      if (GOOGLE_ONLY) hideSignInForms(d);   // an app that repaints only its form gets that one hidden too
+      return true;
+    }
     if (who) return false;
     var forms = d.querySelectorAll('form'), f = null;
     for (var i = 0; i < forms.length; i++) { if (isSignInForm(forms[i])) { f = forms[i]; break; } }
     if (!f || !f.parentNode) return false;
     var a = d.createElement('a');
     a.id = BTN_ID;
-    a.className = 'gx-btn gx-login-submit';            // the suite's own sign-in button, outline variant
+    a.className = GOOGLE_ONLY ? 'gx-btn gx-btn-green gx-login-submit'   // the only way in: the primary button
+                              : 'gx-btn gx-login-submit';               // beside a password form: outline variant
     a.setAttribute('href', href);
+    if (framed) a.setAttribute('target', '_top');   // never navigate just the frame
     a.textContent = 'Sign in with Google';
     a.style.cssText = 'margin:0 0 14px;text-decoration:none;';   // 14px = .gx-login-form's own gap
     f.parentNode.insertBefore(a, f);
+    if (GOOGLE_ONLY) {
+      var note = d.createElement('div');
+      note.id = NOTE_ID;
+      note.className = 'gx-login-err';
+      note.style.cssText = 'margin:0 0 14px;color:var(--gx-text-mute);';
+      note.textContent = 'Use your Green Cross Google account. Password sign-in is turned off.';
+      f.parentNode.insertBefore(note, f);
+      hideSignInForms(d);
+    }
     return true;
   }
 
@@ -227,7 +264,8 @@
       if (signedIn) { clearBanner(); return null; }   // already signed in here — a spent code changes nothing
       whenBody(function () {
         banner((e && e.code === 'no_access') ? "You don't have access to this app. Ask Sky to add you."
-          : 'Could not sign you in from the portal — sign in below, or open the app from the portal again.', 'bad');
+          : (GOOGLE_ONLY ? 'Could not sign you in from the portal — use Sign in with Google below to try again.'
+                         : 'Could not sign you in from the portal — sign in below, or open the app from the portal again.'), 'bad');
         clearBanner(7000);
       });
       watch(opts.app, current);   // left on the password form: offer Google beside it too

@@ -90,7 +90,7 @@ const tick = () => new Promise(r => setTimeout(r, 0));
       const r = await GX.run({ app: 'inventory', save: p => saved.push(p) });
       ok(r === null && saved.length === 0 && st.reloads === 0, label + ' → nothing saved, no reload');
       const b = els['gx-handoff-banner'];
-      ok(b && (code === 'no_access' ? /access to this app/.test(b.textContent) : /sign in below/.test(b.textContent)), '  …and one plain line says why');
+      ok(b && (code === 'no_access' ? /access to this app/.test(b.textContent) : /Sign in with Google below/.test(b.textContent)), '  …and one plain line says why');
     }
     const s = boot('#gxcode=' + CODE, { answer: () => Promise.resolve({ ok: false, code: 'invalid_code' }) });
     await s.GX.run({ app: 'inventory', save() {}, current: () => 'tawny' });
